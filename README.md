@@ -21,7 +21,7 @@ A production-ready MVP marketplace connecting users with mobile diesel mechanics
 
 | Layer      | Technology              |
 |------------|-------------------------|
-| Framework  | Next.js 14 (App Router) |
+| Framework  | Next.js 15 (App Router) |
 | Language   | TypeScript              |
 | Styling    | Tailwind CSS v3         |
 | Database   | PostgreSQL + Prisma ORM |
