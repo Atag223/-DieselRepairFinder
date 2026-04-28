@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendRepairRequestEmail } from '@/lib/email'
+import { isValidEmail } from '@/lib/validation'
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,14 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Basic email validation
-    const atIndex = requesterEmail.indexOf('@')
-    const isValidEmail =
-      atIndex > 0 &&
-      atIndex < requesterEmail.length - 1 &&
-      requesterEmail.lastIndexOf('@') === atIndex &&
-      requesterEmail.slice(atIndex + 1).includes('.') &&
-      !requesterEmail.includes(' ')
-    if (!isValidEmail) {
+    if (!isValidEmail(requesterEmail)) {
       return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
     }
 

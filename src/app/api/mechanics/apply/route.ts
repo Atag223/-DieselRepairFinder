@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendMechanicSignupEmail } from '@/lib/email'
+import { isValidEmail, parseServices } from '@/lib/validation'
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,14 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Basic email validation
-    const atIndex = email.indexOf('@')
-    const isValidEmail =
-      atIndex > 0 &&
-      atIndex < email.length - 1 &&
-      email.lastIndexOf('@') === atIndex &&
-      email.slice(atIndex + 1).includes('.') &&
-      !email.includes(' ')
-    if (!isValidEmail) {
+    if (!isValidEmail(email)) {
       return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
     }
 
@@ -60,11 +54,7 @@ export async function POST(request: NextRequest) {
         serviceRadius: Number(serviceRadius),
         website: website || null,
         is24_7: Boolean(is24_7),
-        services: Array.isArray(services)
-          ? services
-          : typeof services === 'string'
-          ? services.split(',').map((s: string) => s.trim()).filter(Boolean)
-          : [],
+        services: parseServices(services),
         notes: notes || null,
       },
     })
