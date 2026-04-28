@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendRepairRequestEmail } from '@/lib/email'
-import { isValidEmail } from '@/lib/validation'
+import { isValidEmail, parseProviderCategory } from '@/lib/validation'
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,9 +45,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
     }
 
-    const validCategories = ['DIESEL_MECHANIC', 'MOBILE_TIRE_SERVICE', 'HEAVY_DUTY_WRECKER']
-    const category = validCategories.includes(requestedCategory) ? requestedCategory : 'DIESEL_MECHANIC'
-
     const serviceRequest = await prisma.serviceRequest.create({
       data: {
         requesterName,
@@ -64,7 +61,7 @@ export async function POST(request: NextRequest) {
         unitNumber: unitNumber || null,
         roadsideLocation: roadsideLocation || null,
         specialNotes: specialNotes || null,
-        requestedCategory: category,
+        requestedCategory: parseProviderCategory(requestedCategory),
       },
     })
 

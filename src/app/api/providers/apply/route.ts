@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendMechanicSignupEmail } from '@/lib/email'
-import { isValidEmail, parseServices } from '@/lib/validation'
+import { isValidEmail, parseServices, parseProviderCategory } from '@/lib/validation'
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,9 +44,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const validCategories = ['DIESEL_MECHANIC', 'MOBILE_TIRE_SERVICE', 'HEAVY_DUTY_WRECKER']
-    const category = validCategories.includes(providerCategory) ? providerCategory : 'DIESEL_MECHANIC'
-
     const provider = await prisma.serviceProvider.create({
       data: {
         businessName,
@@ -60,7 +57,7 @@ export async function POST(request: NextRequest) {
         is24_7: Boolean(is24_7),
         services: parseServices(services),
         notes: notes || null,
-        providerCategory: category,
+        providerCategory: parseProviderCategory(providerCategory),
       },
     })
 
