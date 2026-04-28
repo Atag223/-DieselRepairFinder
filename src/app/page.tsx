@@ -3,20 +3,42 @@
 import { useState } from 'react'
 import Link from 'next/link'
 
-const ISSUE_TYPES = [
-  'Engine Won\'t Start',
-  'Engine Overheating',
-  'Electrical Issue',
-  'Flat Tire / Tire Change',
-  'Brake Problem',
-  'Transmission Issue',
-  'Fuel System Problem',
-  'DEF / Emissions System',
-  'Air System / Suspension',
-  'Battery Dead / Jump Start',
-  'Oil Leak',
-  'Coolant Leak',
-  'Other',
+type ProviderCategory = 'DIESEL_MECHANIC' | 'MOBILE_TIRE_SERVICE' | 'HEAVY_DUTY_WRECKER'
+
+const ISSUE_TYPES_BY_CATEGORY: Record<ProviderCategory, string[]> = {
+  DIESEL_MECHANIC: [
+    'No Start',
+    'Engine Problem',
+    'Electrical',
+    'DEF / Emissions',
+    'Air / Brakes',
+    'Preventive Maintenance',
+    'Other',
+  ],
+  MOBILE_TIRE_SERVICE: [
+    'Steer Tire',
+    'Drive Tire',
+    'Trailer Tire',
+    'Blowout',
+    'Flat Repair',
+    'Tire Replacement',
+    'Other',
+  ],
+  HEAVY_DUTY_WRECKER: [
+    'Semi Truck Tow',
+    'Heavy Recovery',
+    'Winching',
+    'Accident Recovery',
+    'Equipment Move',
+    'Stuck / Off Road',
+    'Other',
+  ],
+}
+
+const SERVICE_CATEGORIES: { value: ProviderCategory; label: string; icon: string; desc: string }[] = [
+  { value: 'DIESEL_MECHANIC', label: 'Diesel Mechanic', icon: '🔧', desc: 'Mobile diesel repair & maintenance' },
+  { value: 'MOBILE_TIRE_SERVICE', label: 'Mobile Tire Service', icon: '🛞', desc: 'On-site tire repair & replacement' },
+  { value: 'HEAVY_DUTY_WRECKER', label: 'Heavy-Duty Wrecker', icon: '🚨', desc: 'Heavy towing & recovery' },
 ]
 
 const HOW_IT_WORKS = [
@@ -24,19 +46,19 @@ const HOW_IT_WORKS = [
     step: '1',
     title: 'Submit Your Request',
     description:
-      'Fill out the repair request form with your location and issue details. Takes less than 2 minutes.',
+      'Fill out the request form with your location and issue details. Takes less than 2 minutes.',
   },
   {
     step: '2',
     title: 'Get Matched Fast',
     description:
-      'We connect you with the nearest available mobile diesel mechanic in your area, 24/7.',
+      'We connect you with the nearest available provider in your area, 24/7.',
   },
   {
     step: '3',
     title: 'Get Back on the Road',
     description:
-      'Your mechanic comes to you — roadside, truckstop, or job site. No tow required.',
+      'Your provider comes to you — roadside, truckstop, or job site. No tow required.',
   },
 ]
 
@@ -47,7 +69,7 @@ const SERVICES = [
   { icon: '🧯', name: 'Brakes', desc: 'Air brakes, drums, shoes, adjustments' },
   { icon: '💧', name: 'Fluid Leaks', desc: 'Oil, coolant, hydraulic, DEF leaks' },
   { icon: '🔋', name: 'No-Start Service', desc: 'Jump starts, fuel delivery, glow plugs' },
-  { icon: '🌡️', name: 'Cooling System', desc: 'Overheating, radiator, thermostat, fans' },
+  { icon: '🚨', name: 'Heavy Towing', desc: 'Semi truck tow, recovery, winching' },
   { icon: '🚛', name: 'Preventive Maintenance', desc: 'Oil changes, filters, inspections' },
 ]
 
@@ -75,6 +97,7 @@ interface FormData {
 }
 
 export default function HomePage() {
+  const [selectedCategory, setSelectedCategory] = useState<ProviderCategory>('DIESEL_MECHANIC')
   const [form, setForm] = useState<FormData>({
     requesterName: '',
     requesterEmail: '',
@@ -105,6 +128,11 @@ export default function HomePage() {
     }))
   }
 
+  const handleCategoryChange = (category: ProviderCategory) => {
+    setSelectedCategory(category)
+    setForm((prev) => ({ ...prev, issueType: '' }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
@@ -114,7 +142,7 @@ export default function HomePage() {
       const res = await fetch('/api/repair-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, requestedCategory: selectedCategory }),
       })
       const data = await res.json()
       if (res.ok) {
@@ -158,13 +186,13 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-4">
             <a href="#request" className="hidden sm:block text-gray-300 hover:text-white transition-colors">
-              Request Repair
+              Request Service
             </a>
             <Link
               href="/join"
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors text-sm"
             >
-              Join as a Mechanic
+              Join as a Provider
             </Link>
           </div>
         </div>
@@ -176,30 +204,30 @@ export default function HomePage() {
         <div className="relative max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-blue-950/60 border border-blue-800/50 rounded-full px-4 py-1.5 text-sm text-blue-300 mb-6">
             <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-            Mechanics Available Now
+            Providers Available Now
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 text-balance">
-            Find Mobile Diesel Repair
+            Roadside Truck Help
             <br />
             <span className="text-blue-500">Near You — Fast</span>
           </h1>
           <p className="text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto mb-10">
-            Broken down on the road? Don&apos;t wait for a tow. Our network of certified mobile
-            diesel mechanics comes to you — roadside, truckstop, or job site. Available 24/7 for
-            emergency diesel repair and service.
+            Broken down on the road? Don&apos;t wait. Our network of mobile diesel mechanics,
+            tire service pros, and heavy-duty wreckers comes to you — roadside, truckstop, or
+            job site. Available 24/7.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a
               href="#request"
               className="bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold px-8 py-4 rounded-xl transition-colors shadow-lg shadow-blue-900/40"
             >
-              🔧 Request Diesel Repair
+              🔧 Request Help Now
             </a>
             <Link
               href="/join"
               className="border border-gray-600 hover:border-gray-400 text-gray-200 hover:text-white text-lg font-semibold px-8 py-4 rounded-xl transition-colors"
             >
-              Join as a Mechanic →
+              Join as a Provider →
             </Link>
           </div>
         </div>
@@ -227,12 +255,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Repair Request Form */}
+      {/* Request Form */}
       <section id="request" className="py-20 px-4 bg-black">
         <div className="max-w-2xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-4">Request Diesel Repair</h2>
+          <h2 className="text-3xl font-bold text-center mb-4">Request Roadside Help</h2>
           <p className="text-gray-400 text-center mb-10">
-            Fill out the form below and we&apos;ll connect you with a mobile mechanic fast.
+            Fill out the form below and we&apos;ll connect you with a provider fast.
           </p>
 
           {result?.success ? (
@@ -240,7 +268,7 @@ export default function HomePage() {
               <div className="text-5xl mb-4">✅</div>
               <h3 className="text-2xl font-bold text-green-400 mb-3">Request Submitted!</h3>
               <p className="text-gray-300 mb-4">
-                Your repair request has been received. A mobile mechanic will contact you shortly.
+                Your request has been received. A provider will contact you shortly.
               </p>
               <div className="bg-black/50 rounded-xl px-6 py-3 inline-block">
                 <span className="text-gray-400 text-sm">Reference ID: </span>
@@ -263,6 +291,30 @@ export default function HomePage() {
                   {result.error}
                 </div>
               )}
+
+              {/* Category Selector */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-3">
+                  What do you need help with? <span className="text-red-400">*</span>
+                </label>
+                <div className="grid grid-cols-3 gap-3">
+                  {SERVICE_CATEGORIES.map((cat) => (
+                    <button
+                      key={cat.value}
+                      type="button"
+                      onClick={() => handleCategoryChange(cat.value)}
+                      className={`flex flex-col items-center gap-1.5 px-3 py-4 rounded-xl border text-center transition-colors ${
+                        selectedCategory === cat.value
+                          ? 'bg-blue-600 border-blue-500 text-white'
+                          : 'bg-black border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200'
+                      }`}
+                    >
+                      <span className="text-2xl">{cat.icon}</span>
+                      <span className="text-xs font-semibold leading-tight">{cat.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {/* Emergency checkbox */}
               <label className="flex items-center gap-3 bg-red-950/40 border border-red-800/50 rounded-xl p-4 cursor-pointer hover:bg-red-950/60 transition-colors">
@@ -368,7 +420,7 @@ export default function HomePage() {
                     className="w-full bg-black border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
                   >
                     <option value="">Select issue type</option>
-                    {ISSUE_TYPES.map((t) => (
+                    {ISSUE_TYPES_BY_CATEGORY[selectedCategory].map((t) => (
                       <option key={t} value={t}>{t}</option>
                     ))}
                   </select>
@@ -439,7 +491,7 @@ export default function HomePage() {
                   value={form.specialNotes}
                   onChange={handleChange}
                   rows={2}
-                  placeholder="Any other details the mechanic should know..."
+                  placeholder="Any other details the provider should know..."
                   className="w-full bg-black border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors resize-none"
                 />
               </div>
@@ -449,11 +501,11 @@ export default function HomePage() {
                 disabled={submitting}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-900 disabled:cursor-not-allowed text-white text-lg font-bold py-4 rounded-xl transition-colors shadow-lg shadow-blue-900/40"
               >
-                {submitting ? 'Submitting...' : '🔧 Request Diesel Repair'}
+                {submitting ? 'Submitting...' : '🔧 Request Help Now'}
               </button>
 
               <p className="text-gray-500 text-xs text-center">
-                By submitting you agree to be contacted by a mobile diesel mechanic. No obligation.
+                By submitting you agree to be contacted by a service provider. No obligation.
               </p>
             </form>
           )}
@@ -465,7 +517,7 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-4">Services We Cover</h2>
           <p className="text-gray-400 text-center mb-12">
-            Mobile diesel mechanics ready for any roadside situation
+            Mobile diesel repair, tire service, and heavy-duty towing &amp; recovery
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {SERVICES.map((s) => (
@@ -502,22 +554,23 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Mechanic CTA */}
+      {/* Provider CTA */}
       <section className="py-20 px-4 bg-gradient-to-b from-blue-950/30 to-black">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl font-bold mb-5">
-            Are You a Diesel Mechanic?
+            Are You a Roadside Service Provider?
           </h2>
           <p className="text-gray-300 text-lg mb-8">
-            Join our network of mobile diesel mechanics. Set your own hours, work in your territory,
-            and get connected with drivers who need your skills — 24/7.
+            Join our network of mobile diesel mechanics, tire service pros, and heavy-duty wreckers.
+            Set your own hours, work in your territory, and get connected with drivers who need
+            your skills — 24/7.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/join"
               className="bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold px-8 py-4 rounded-xl transition-colors shadow-lg shadow-blue-900/40"
             >
-              Join as a Mechanic →
+              Join as a Provider →
             </Link>
           </div>
           <div className="mt-8 grid sm:grid-cols-3 gap-6 text-center">
@@ -542,10 +595,10 @@ export default function HomePage() {
             <span className="text-lg">🚛</span>
             <span className="font-semibold text-gray-400">DieselRepairFinder.com</span>
           </div>
-          <p>Mobile Diesel Mechanics. Anytime. Anywhere.</p>
+          <p>Mobile Diesel Repair · Tire Service · Heavy-Duty Towing</p>
           <div className="flex gap-4">
-            <Link href="/join" className="hover:text-gray-400 transition-colors">Join as Mechanic</Link>
-            <a href="#request" className="hover:text-gray-400 transition-colors">Request Repair</a>
+            <Link href="/join" className="hover:text-gray-400 transition-colors">Join as Provider</Link>
+            <a href="#request" className="hover:text-gray-400 transition-colors">Request Help</a>
           </div>
         </div>
       </footer>

@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
       unitNumber,
       roadsideLocation,
       specialNotes,
+      requestedCategory,
     } = body
 
     // Validate required fields
@@ -44,7 +45,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
     }
 
-    const repairRequest = await prisma.dieselRepairRequest.create({
+    const validCategories = ['DIESEL_MECHANIC', 'MOBILE_TIRE_SERVICE', 'HEAVY_DUTY_WRECKER']
+    const category = validCategories.includes(requestedCategory) ? requestedCategory : 'DIESEL_MECHANIC'
+
+    const serviceRequest = await prisma.serviceRequest.create({
       data: {
         requesterName,
         requesterEmail,
@@ -60,35 +64,36 @@ export async function POST(request: NextRequest) {
         unitNumber: unitNumber || null,
         roadsideLocation: roadsideLocation || null,
         specialNotes: specialNotes || null,
+        requestedCategory: category,
       },
     })
 
     // Send email notifications (non-blocking)
     sendRepairRequestEmail({
-      referenceId: repairRequest.referenceId,
-      requesterName: repairRequest.requesterName,
-      requesterEmail: repairRequest.requesterEmail,
-      requesterPhone: repairRequest.requesterPhone,
-      serviceAddress: repairRequest.serviceAddress,
-      issueType: repairRequest.issueType,
-      issueDetails: repairRequest.issueDetails,
-      requesterCompany: repairRequest.requesterCompany,
-      breakdownNow: repairRequest.breakdownNow,
-      truckType: repairRequest.truckType,
+      referenceId: serviceRequest.referenceId,
+      requesterName: serviceRequest.requesterName,
+      requesterEmail: serviceRequest.requesterEmail,
+      requesterPhone: serviceRequest.requesterPhone,
+      serviceAddress: serviceRequest.serviceAddress,
+      issueType: serviceRequest.issueType,
+      issueDetails: serviceRequest.issueDetails,
+      requesterCompany: serviceRequest.requesterCompany,
+      breakdownNow: serviceRequest.breakdownNow,
+      truckType: serviceRequest.truckType,
     })
 
     return NextResponse.json(
       {
         success: true,
-        referenceId: repairRequest.referenceId,
-        message: 'Your repair request has been submitted. A mechanic will contact you shortly.',
+        referenceId: serviceRequest.referenceId,
+        message: 'Your request has been submitted. A provider will contact you shortly.',
       },
       { status: 201 }
     )
   } catch (error) {
-    console.error('Error creating repair request:', error)
+    console.error('Error creating service request:', error)
     return NextResponse.json(
-      { error: 'Failed to submit repair request. Please try again.' },
+      { error: 'Failed to submit request. Please try again.' },
       { status: 500 }
     )
   }
