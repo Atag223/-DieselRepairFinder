@@ -1,0 +1,66 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RequestStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model DieselRepairRequest {
+  id                String        @id @default(cuid())
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Required fields
+  requesterName     String
+  requesterEmail    String
+  requesterPhone    String
+  serviceAddress    String
+  issueType         String
+  issueDetails      String
+
+  // Optional fields
+  requesterCompany  String?
+  city              String?
+  state             String?
+  breakdownNow      Boolean       @default(false)
+  truckType         String?
+  unitNumber        String?
+  roadsideLocation  String?
+  specialNotes      String?
+
+  status            RequestStatus @default(PENDING)
+  referenceId       String        @unique @default(cuid())
+}
+
+model DieselMechanic {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  businessName  String
+  contactName   String
+  phone         String
+  email         String   @unique
+  city          String
+  state         String
+  serviceRadius Int
+  website       String?
+  is24_7        Boolean  @default(false)
+  services      String[]
+  notes         String?
+
+  active        Boolean  @default(true)
+}
