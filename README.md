@@ -95,7 +95,7 @@ Open [http://localhost:3000](http://localhost:3000)
 │       ├── prisma.ts           # Prisma client singleton
 │       └── email.ts            # Resend email utilities
 ├── .env.example
-├── next.config.ts
+├── next.config.mjs
 ├── tailwind.config.ts
 └── package.json
 ```
