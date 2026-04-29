@@ -25,6 +25,12 @@ const SERVICE_OPTIONS = [
   'Emergency No-Start',
 ]
 
+const PROVIDER_CATEGORIES = [
+  { value: 'DIESEL_MECHANIC', label: 'Mobile Diesel Mechanic', icon: '🔧' },
+  { value: 'MOBILE_TIRE_SERVICE', label: 'Mobile Tire Service', icon: '🛞' },
+  { value: 'HEAVY_DUTY_WRECKER', label: 'Heavy-Duty Wrecker', icon: '🚨' },
+]
+
 interface FormData {
   businessName: string
   contactName: string
@@ -37,6 +43,7 @@ interface FormData {
   is24_7: boolean
   services: string[]
   notes: string
+  providerCategory: string
 }
 
 export default function JoinPage() {
@@ -52,6 +59,7 @@ export default function JoinPage() {
     is24_7: false,
     services: [],
     notes: '',
+    providerCategory: 'DIESEL_MECHANIC',
   })
 
   const [submitting, setSubmitting] = useState(false)
@@ -82,7 +90,7 @@ export default function JoinPage() {
     setResult(null)
 
     try {
-      const res = await fetch('/api/mechanics/apply', {
+      const res = await fetch('/api/providers/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -115,7 +123,7 @@ export default function JoinPage() {
             href="/#request"
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors text-sm"
           >
-            Request Repair
+            Request Service
           </Link>
         </div>
       </nav>
@@ -127,8 +135,8 @@ export default function JoinPage() {
             Join the <span className="text-blue-500">Diesel Repair Finder</span> Network
           </h1>
           <p className="text-gray-300 text-lg mb-6">
-            Connect with drivers who need your skills. Grow your mobile diesel business with steady
-            local leads — on your schedule.
+            Connect with drivers who need your skills. Grow your mobile service business with
+            steady local leads — on your schedule.
           </p>
           <div className="grid sm:grid-cols-3 gap-4 max-w-xl mx-auto">
             {[
@@ -168,7 +176,7 @@ export default function JoinPage() {
               onSubmit={handleSubmit}
               className="bg-gray-950 border border-gray-800 rounded-2xl p-8 space-y-6"
             >
-              <h2 className="text-2xl font-bold">Mechanic Application</h2>
+              <h2 className="text-2xl font-bold">Provider Application</h2>
               <p className="text-gray-400 text-sm -mt-2">
                 All fields marked with <span className="text-red-400">*</span> are required.
               </p>
@@ -178,6 +186,30 @@ export default function JoinPage() {
                   {result.error}
                 </div>
               )}
+
+              {/* Provider Category */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-3">
+                  Provider Category <span className="text-red-400">*</span>
+                </label>
+                <div className="grid grid-cols-3 gap-3">
+                  {PROVIDER_CATEGORIES.map((cat) => (
+                    <button
+                      key={cat.value}
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, providerCategory: cat.value }))}
+                      className={`flex flex-col items-center gap-1.5 px-3 py-4 rounded-xl border text-center transition-colors ${
+                        form.providerCategory === cat.value
+                          ? 'bg-blue-600 border-blue-500 text-white'
+                          : 'bg-black border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200'
+                      }`}
+                    >
+                      <span className="text-2xl">{cat.icon}</span>
+                      <span className="text-xs font-semibold leading-tight">{cat.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               <div className="grid sm:grid-cols-2 gap-5">
                 <div>
@@ -382,7 +414,7 @@ export default function JoinPage() {
             <span className="text-lg">🚛</span>
             <span className="font-semibold text-gray-400">DieselRepairFinder.com</span>
           </Link>
-          <p>Mobile Diesel Mechanics. Anytime. Anywhere.</p>
+          <p>Mobile Diesel Repair · Tire Service · Heavy-Duty Towing</p>
         </div>
       </footer>
     </div>
