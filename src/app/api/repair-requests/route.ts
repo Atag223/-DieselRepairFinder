@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendRepairRequestEmail } from '@/lib/email'
 import { isValidEmail, parseProviderCategory } from '@/lib/validation'
+import { selectProviders, createLeadsForRequest } from '@/lib/leads'
 
 export async function POST(request: NextRequest) {
   try {
@@ -77,6 +78,21 @@ export async function POST(request: NextRequest) {
       requesterCompany: serviceRequest.requesterCompany,
       breakdownNow: serviceRequest.breakdownNow,
       truckType: serviceRequest.truckType,
+    })
+
+    // Select providers and create lead records (non-blocking).
+    // Errors are intentionally only logged here — a failure in lead tracking
+    // should not prevent the requester from receiving a success response.
+    selectProviders({
+      state: serviceRequest.state,
+      category: serviceRequest.requestedCategory,
+    }).then((providers) => {
+      const providerIds = providers.map((p) => p.id)
+      if (providerIds.length > 0) {
+        return createLeadsForRequest(serviceRequest.id, providerIds)
+      }
+    }).catch((err) => {
+      console.error('Error creating lead records:', err)
     })
 
     return NextResponse.json(

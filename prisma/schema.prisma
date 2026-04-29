@@ -24,6 +24,19 @@ enum ProviderCategory {
   HEAVY_DUTY_WRECKER
 }
 
+enum ProviderTier {
+  FREE
+  FEATURED
+  PREMIUM
+}
+
+enum LeadStatus {
+  SENT
+  ACCEPTED
+  DECLINED
+  NO_RESPONSE
+}
+
 model ServiceRequest {
   id                String           @id @default(cuid())
   createdAt         DateTime         @default(now())
@@ -51,6 +64,8 @@ model ServiceRequest {
   referenceId       String           @unique @default(cuid())
   requestedCategory ProviderCategory @default(DIESEL_MECHANIC)
 
+  leads             Lead[]
+
   @@map("DieselRepairRequest")
 }
 
@@ -74,5 +89,30 @@ model ServiceProvider {
   active           Boolean          @default(true)
   providerCategory ProviderCategory @default(DIESEL_MECHANIC)
 
+  // Monetization fields
+  tier                ProviderTier @default(FREE)
+  leadsReceived       Int          @default(0)
+  freeLeadsRemaining  Int          @default(3)
+  totalLeadsCharged   Int          @default(0)
+
+  leads               Lead[]
+
   @@map("DieselMechanic")
+}
+
+model Lead {
+  id               String     @id @default(cuid())
+  createdAt        DateTime   @default(now())
+
+  serviceRequestId String
+  providerId       String
+
+  status           LeadStatus @default(SENT)
+  charged          Boolean    @default(false)
+  price            Float      @default(25)
+
+  serviceRequest   ServiceRequest  @relation(fields: [serviceRequestId], references: [id])
+  provider         ServiceProvider @relation(fields: [providerId], references: [id])
+
+  @@map("DieselLead")
 }
