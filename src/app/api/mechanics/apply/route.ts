@@ -62,11 +62,13 @@ export async function POST(request: NextRequest) {
     })
 
     // Send email notifications (non-blocking)
+    // contactName, email, and phone are validated as required fields above,
+    // so they are guaranteed to be non-null at this point.
     sendMechanicSignupEmail({
       businessName: provider.businessName,
-      contactName: provider.contactName,
-      email: provider.email,
-      phone: provider.phone,
+      contactName: provider.contactName!,
+      email: provider.email!,
+      phone: provider.phone!,
       city: provider.city,
       state: provider.state,
     })

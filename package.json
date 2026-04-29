@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "seed:providers": "tsx scripts/seed-providers-from-google.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -25,6 +26,7 @@
     "postcss": "^8.5.12",
     "prisma": "^5.22.0",
     "tailwindcss": "^3.4.15",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.2"
   }
 }

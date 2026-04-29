@@ -148,3 +148,89 @@ Submit a mechanic application.
 npm run build
 npm start
 ```
+
+---
+
+## Seeding Providers from Google Places
+
+The repository ships with a one-time seeding script that imports mobile diesel
+mechanics, mobile tire services, and heavy-duty wreckers from the Google Places
+API across 5 major cities in every US state.
+
+### 1. Get a Google Places API Key
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com).
+2. Create (or select) a project.
+3. Enable the **Places API (New)** for that project.
+4. Create an API key under **APIs & Services → Credentials**.
+
+### 2. Add the Key to Your Environment
+
+```bash
+# .env
+GOOGLE_PLACES_API_KEY="your_google_places_api_key_here"
+```
+
+### 3. Apply the Database Migration
+
+The script requires three new columns on `ServiceProvider`. Apply the migration
+before running the seed:
+
+```bash
+npx prisma migrate deploy
+# or, in development:
+npx prisma migrate dev
+```
+
+### 4. Run the Seed Script
+
+The script supports three modes to control API costs and allow testing in small batches:
+
+```bash
+# Full nationwide run (all 50 states × 5 cities × 4 queries)
+npm run seed:providers
+
+# Single state only
+npm run seed:providers -- --state TX
+
+# Single city within a state
+npm run seed:providers -- --state TX --city Dallas
+```
+
+**Optional flags:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--state <code>` | *(all states)* | Limit to a single state (two-letter code, e.g. `TX`) |
+| `--city <name>` | *(all cities)* | Limit to a single city within `--state` |
+| `--max-results <n>` | `20` | Max results per query (1–20; Google Places API limit is 20) |
+| `--delay <ms>` | `200` | Milliseconds between API requests (increase if you hit 429s) |
+
+**Example — test with a small batch before a full run:**
+
+```bash
+# Start small: one city, 10 results per query
+npm run seed:providers -- --state TX --city Houston --max-results 10
+
+# Then expand to a full state
+npm run seed:providers -- --state TX
+
+# Then run nationwide
+npm run seed:providers
+```
+
+The script will:
+- Search cities × states × 4 query terms via the Google Places API.
+- Cap results at `--max-results` per query (default 20, max 20).
+- Import each unique result as an **UNVERIFIED / FREE** provider.
+- Skip providers that already exist (deduplicates by Google Place ID, or by
+  business name + city + state + phone).
+- Never overwrite existing provider records.
+- Print a summary including **total API calls made**, imported, skipped, and errors.
+
+### ⚠️ Important Warning
+
+All providers imported by this script are set to `verificationStatus = UNVERIFIED`.
+**Do not treat these listings as confirmed businesses.** Review and verify each
+provider by phone before marking them as VERIFIED.
+

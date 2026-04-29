@@ -30,6 +30,17 @@ enum ProviderTier {
   PREMIUM
 }
 
+enum VerificationStatus {
+  UNVERIFIED
+  VERIFIED
+  REJECTED
+}
+
+enum ProviderSource {
+  MANUAL
+  GOOGLE_PLACES
+}
+
 enum LeadStatus {
   SENT
   ACCEPTED
@@ -75,12 +86,12 @@ model ServiceProvider {
   updatedAt     DateTime         @updatedAt
 
   businessName  String
-  contactName   String
-  phone         String
-  email         String           @unique
+  contactName   String?
+  phone         String?
+  email         String?          @unique
   city          String
   state         String
-  serviceRadius Int
+  serviceRadius Int?
   website       String?
   is24_7        Boolean          @default(false)
   services      String[]
@@ -94,6 +105,15 @@ model ServiceProvider {
   leadsReceived       Int          @default(0)
   freeLeadsRemaining  Int          @default(3)
   totalLeadsCharged   Int          @default(0)
+
+  // Google Places import fields
+  googlePlaceId     String?          @unique
+  googleMapsUri     String?
+  formattedAddress  String?
+  latitude          Float?
+  longitude         Float?
+  source            ProviderSource   @default(MANUAL)
+  verificationStatus VerificationStatus @default(UNVERIFIED)
 
   leads               Lead[]
 
