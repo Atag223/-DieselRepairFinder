@@ -21,9 +21,11 @@ export async function selectProviders(params: {
 }) {
   const tierOrder: ProviderTier[] = ['PREMIUM', 'FEATURED', 'FREE']
 
-  console.log(
-    `[leads] Routing request${params.serviceRequestId ? ` ${params.serviceRequestId}` : ''} — category: ${params.category}, state: ${params.state ?? 'any'}`
-  )
+  console.log('[leads] Routing request', {
+    serviceRequestId: params.serviceRequestId ?? null,
+    category: params.category,
+    state: params.state ?? 'any',
+  })
 
   // Find providers that received a lead in the recent window (any request)
   const windowStart = new Date(Date.now() - RECENT_LEAD_WINDOW_HOURS * 60 * 60 * 1000)
@@ -70,9 +72,11 @@ export async function selectProviders(params: {
         ...sorted.filter((p) => recentProviderIds.has(p.id)),
       ].slice(0, MAX_PROVIDERS_PER_REQUEST)
 
-  console.log(
-    `[leads] Selected ${selected.length} provider(s): ${selected.map((p) => `${p.businessName} (${p.tier})`).join(', ') || 'none'}`
-  )
+  console.log('[leads] Providers selected', {
+    serviceRequestId: params.serviceRequestId ?? null,
+    count: selected.length,
+    providers: selected.map((p) => ({ providerId: p.id, name: p.businessName, tier: p.tier })),
+  })
 
   return selected
 }
@@ -98,13 +102,14 @@ export async function createLeadsForRequest(
   const newProviderIds = providerIds.filter((id) => !existingProviderIds.has(id))
 
   if (existingProviderIds.size > 0) {
-    console.log(
-      `[leads] Skipping ${existingProviderIds.size} duplicate lead(s) for request ${serviceRequestId} (providerIds: ${[...existingProviderIds].join(', ')})`
-    )
+    console.log('[leads] Duplicate leads skipped', {
+      serviceRequestId,
+      skippedProviderIds: [...existingProviderIds],
+    })
   }
 
   if (newProviderIds.length === 0) {
-    console.log(`[leads] No new leads to create for request ${serviceRequestId}`)
+    console.log('[leads] No new leads to create', { serviceRequestId })
     return
   }
 
@@ -117,9 +122,12 @@ export async function createLeadsForRequest(
     providers.map(async (provider) => {
       const charged = provider.freeLeadsRemaining <= 0
 
-      console.log(
-        `[leads] Creating lead — requestId: ${serviceRequestId}, providerId: ${provider.id} (${provider.businessName}), charged: ${charged}, price: $${charged ? LEAD_PRICE : 0}`
-      )
+      console.log('[leads] Creating lead', {
+        serviceRequestId,
+        providerId: provider.id,
+        charged,
+        price: charged ? LEAD_PRICE : 0,
+      })
 
       await prisma.$transaction([
         prisma.lead.create({
@@ -145,9 +153,13 @@ export async function createLeadsForRequest(
         }),
       ])
 
-      console.log(
-        `[leads] Lead created — requestId: ${serviceRequestId}, providerId: ${provider.id}, status: SENT, ${charged ? `PAID ($${LEAD_PRICE})` : 'FREE'}`
-      )
+      console.log('[leads] Lead created', {
+        serviceRequestId,
+        providerId: provider.id,
+        status: LeadStatus.SENT,
+        charged,
+        price: charged ? LEAD_PRICE : 0,
+      })
     })
   )
 }

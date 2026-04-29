@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
       if (providerIds.length > 0) {
         await createLeadsForRequest(serviceRequest.id, providerIds)
       } else {
-        console.log(`[leads] No matching providers found for request ${serviceRequest.id}`)
+        console.log('[leads] No matching providers found', { serviceRequestId: serviceRequest.id })
       }
     } catch (leadErr) {
       // Lead creation failure is logged prominently but does not fail the HTTP response —
