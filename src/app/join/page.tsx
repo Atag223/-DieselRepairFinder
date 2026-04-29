@@ -138,7 +138,7 @@ export default function JoinPage() {
             Connect with drivers who need your skills. Grow your mobile service business with
             steady local leads — on your schedule.
           </p>
-          <div className="grid sm:grid-cols-3 gap-4 max-w-xl mx-auto">
+          <div className="grid sm:grid-cols-3 gap-4 max-w-xl mx-auto mb-8">
             {[
               { stat: 'Free', sub: 'No signup fees' },
               { stat: 'Local Leads', sub: 'In your service area' },
@@ -147,6 +147,82 @@ export default function JoinPage() {
               <div key={item.stat} className="bg-gray-950 border border-gray-800 rounded-xl p-4">
                 <div className="text-lg font-extrabold text-blue-400">{item.stat}</div>
                 <div className="text-gray-500 text-xs mt-0.5">{item.sub}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Pay-per-lead callout */}
+          <div className="bg-blue-950/40 border border-blue-800/60 rounded-2xl p-6 text-left max-w-xl mx-auto">
+            <h2 className="text-lg font-bold text-blue-300 mb-3">💡 How leads work</h2>
+            <ul className="space-y-2 text-sm text-gray-300">
+              <li className="flex items-start gap-2">
+                <span className="text-green-400 mt-0.5">✓</span>
+                <span>
+                  <strong className="text-white">First 3 leads are free</strong> — get started
+                  with no upfront cost.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-yellow-400 mt-0.5">$</span>
+                <span>
+                  After your free leads, it&apos;s just{' '}
+                  <strong className="text-white">$25 per lead</strong> — only pay when you receive
+                  a new job request.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-blue-400 mt-0.5">⭐</span>
+                <span>
+                  <strong className="text-white">Upgrade for more leads and priority placement</strong>{' '}
+                  — Featured ($99/mo) and Premium ($199/mo) plans put you at the top.
+                </span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Tier cards */}
+          <div className="grid sm:grid-cols-3 gap-4 max-w-2xl mx-auto mt-8">
+            {[
+              {
+                name: 'Free',
+                price: '$0',
+                color: 'border-gray-700',
+                badge: 'bg-gray-700 text-gray-300',
+                features: ['3 free leads', '$25/lead after that', 'Standard placement'],
+              },
+              {
+                name: 'Featured',
+                price: '$99/mo',
+                color: 'border-blue-600',
+                badge: 'bg-blue-600/30 text-blue-300',
+                features: ['More leads per month', '$25/lead after allowance', 'Priority placement'],
+              },
+              {
+                name: 'Premium',
+                price: '$199/mo',
+                color: 'border-yellow-500',
+                badge: 'bg-yellow-500/20 text-yellow-300',
+                features: ['Highest lead volume', 'Top placement in results', 'Dedicated support'],
+              },
+            ].map((tier) => (
+              <div
+                key={tier.name}
+                className={`bg-gray-950 border ${tier.color} rounded-xl p-5 text-left`}
+              >
+                <div
+                  className={`inline-block px-2 py-0.5 rounded text-xs font-semibold mb-3 ${tier.badge}`}
+                >
+                  {tier.name}
+                </div>
+                <div className="text-xl font-extrabold text-white mb-3">{tier.price}</div>
+                <ul className="space-y-1.5">
+                  {tier.features.map((f) => (
+                    <li key={f} className="flex items-start gap-1.5 text-xs text-gray-400">
+                      <span className="text-blue-400 mt-0.5">·</span>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
               </div>
             ))}
           </div>

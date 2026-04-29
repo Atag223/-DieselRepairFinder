@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendRepairRequestEmail } from '@/lib/email'
 import { isValidEmail, parseProviderCategory } from '@/lib/validation'
+import { selectProviders, createLeadsForRequest } from '@/lib/leads'
 
 export async function POST(request: NextRequest) {
   try {
@@ -78,6 +79,28 @@ export async function POST(request: NextRequest) {
       breakdownNow: serviceRequest.breakdownNow,
       truckType: serviceRequest.truckType,
     })
+
+    // Select providers and create lead records — awaited so leads are always persisted.
+    try {
+      const providers = await selectProviders({
+        state: serviceRequest.state,
+        category: serviceRequest.requestedCategory,
+        serviceRequestId: serviceRequest.id,
+      })
+      const providerIds = providers.map((p) => p.id)
+      if (providerIds.length > 0) {
+        await createLeadsForRequest(serviceRequest.id, providerIds)
+      } else {
+        console.log('[leads] No matching providers found', { serviceRequestId: serviceRequest.id })
+      }
+    } catch (leadErr) {
+      // Lead creation failure is logged prominently but does not fail the HTTP response —
+      // the service request is already persisted and the requester should not be blocked.
+      console.error(
+        `[leads] CRITICAL: Failed to create lead records for request ${serviceRequest.id}:`,
+        leadErr
+      )
+    }
 
     return NextResponse.json(
       {
