@@ -148,3 +148,56 @@ Submit a mechanic application.
 npm run build
 npm start
 ```
+
+---
+
+## Seeding Providers from Google Places
+
+The repository ships with a one-time seeding script that imports mobile diesel
+mechanics, mobile tire services, and heavy-duty wreckers from the Google Places
+API across 5 major cities in every US state.
+
+### 1. Get a Google Places API Key
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com).
+2. Create (or select) a project.
+3. Enable the **Places API (New)** for that project.
+4. Create an API key under **APIs & Services → Credentials**.
+
+### 2. Add the Key to Your Environment
+
+```bash
+# .env
+GOOGLE_PLACES_API_KEY="your_google_places_api_key_here"
+```
+
+### 3. Apply the Database Migration
+
+The script requires three new columns on `ServiceProvider`. Apply the migration
+before running the seed:
+
+```bash
+npx prisma migrate deploy
+# or, in development:
+npx prisma migrate dev
+```
+
+### 4. Run the Seed Script
+
+```bash
+npm run seed:providers
+```
+
+The script will:
+- Search 5 major cities × 50 states × 4 query terms via the Google Places API.
+- Import each unique result as an **UNVERIFIED / FREE** provider.
+- Skip providers that already exist (deduplicates by Google Place ID, or by
+  business name + city + state + phone).
+- Never overwrite existing provider records.
+
+### ⚠️ Important Warning
+
+All providers imported by this script are set to `verificationStatus = UNVERIFIED`.
+**Do not treat these listings as confirmed businesses.** Review and verify each
+provider by phone before marking them as VERIFIED.
+
