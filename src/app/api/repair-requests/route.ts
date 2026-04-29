@@ -80,20 +80,27 @@ export async function POST(request: NextRequest) {
       truckType: serviceRequest.truckType,
     })
 
-    // Select providers and create lead records (non-blocking).
-    // Errors are intentionally only logged here — a failure in lead tracking
-    // should not prevent the requester from receiving a success response.
-    selectProviders({
-      state: serviceRequest.state,
-      category: serviceRequest.requestedCategory,
-    }).then((providers) => {
+    // Select providers and create lead records — awaited so leads are always persisted.
+    try {
+      const providers = await selectProviders({
+        state: serviceRequest.state,
+        category: serviceRequest.requestedCategory,
+        serviceRequestId: serviceRequest.id,
+      })
       const providerIds = providers.map((p) => p.id)
       if (providerIds.length > 0) {
-        return createLeadsForRequest(serviceRequest.id, providerIds)
+        await createLeadsForRequest(serviceRequest.id, providerIds)
+      } else {
+        console.log(`[leads] No matching providers found for request ${serviceRequest.id}`)
       }
-    }).catch((err) => {
-      console.error('Error creating lead records:', err)
-    })
+    } catch (leadErr) {
+      // Lead creation failure is logged prominently but does not fail the HTTP response —
+      // the service request is already persisted and the requester should not be blocked.
+      console.error(
+        `[leads] CRITICAL: Failed to create lead records for request ${serviceRequest.id}:`,
+        leadErr
+      )
+    }
 
     return NextResponse.json(
       {
