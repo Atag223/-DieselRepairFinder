@@ -184,16 +184,49 @@ npx prisma migrate dev
 
 ### 4. Run the Seed Script
 
+The script supports three modes to control API costs and allow testing in small batches:
+
 ```bash
+# Full nationwide run (all 50 states × 5 cities × 4 queries)
+npm run seed:providers
+
+# Single state only
+npm run seed:providers -- --state TX
+
+# Single city within a state
+npm run seed:providers -- --state TX --city Dallas
+```
+
+**Optional flags:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--state <code>` | *(all states)* | Limit to a single state (two-letter code, e.g. `TX`) |
+| `--city <name>` | *(all cities)* | Limit to a single city within `--state` |
+| `--max-results <n>` | `20` | Max results per query (1–20; Google Places API limit is 20) |
+| `--delay <ms>` | `200` | Milliseconds between API requests (increase if you hit 429s) |
+
+**Example — test with a small batch before a full run:**
+
+```bash
+# Start small: one city, 10 results per query
+npm run seed:providers -- --state TX --city Houston --max-results 10
+
+# Then expand to a full state
+npm run seed:providers -- --state TX
+
+# Then run nationwide
 npm run seed:providers
 ```
 
 The script will:
-- Search 5 major cities × 50 states × 4 query terms via the Google Places API.
+- Search cities × states × 4 query terms via the Google Places API.
+- Cap results at `--max-results` per query (default 20, max 20).
 - Import each unique result as an **UNVERIFIED / FREE** provider.
 - Skip providers that already exist (deduplicates by Google Place ID, or by
   business name + city + state + phone).
 - Never overwrite existing provider records.
+- Print a summary including **total API calls made**, imported, skipped, and errors.
 
 ### ⚠️ Important Warning
 

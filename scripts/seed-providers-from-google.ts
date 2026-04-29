@@ -5,23 +5,61 @@
  * 50 US states using the Google Places API Text Search endpoint.
  *
  * Usage:
- *   npm run seed:providers
+ *   npm run seed:providers                        # full nationwide run
+ *   npm run seed:providers -- --state TX          # single state
+ *   npm run seed:providers -- --state TX --city Dallas  # single city
+ *   npm run seed:providers -- --max-results 10    # cap results per query (default: 20)
+ *   npm run seed:providers -- --delay 500         # ms between requests (default: 200)
  *
  * Required environment variable:
  *   GOOGLE_PLACES_API_KEY  – A valid Google Cloud API key with the Places API enabled.
  *
  * Behaviour:
  *   - Searches each city × search term combination (4 terms × 5 cities × 50 states).
+ *   - Caps each query at MAX_RESULTS (default 20, max 20 per Google Places API limit).
  *   - Deduplicates by Google Place ID when available, otherwise by
  *     businessName + city + state + phone.
  *   - Skips any provider that already exists in the database.
  *   - Never overwrites an existing record.
  *   - Imports providers as UNVERIFIED / FREE with freeLeadsRemaining = 3.
+ *   - Logs total API calls made at the end of the run.
  */
 
 import { PrismaClient, ProviderCategory, ProviderSource, VerificationStatus, ProviderTier } from '@prisma/client'
 
 const prisma = new PrismaClient()
+
+// ---------------------------------------------------------------------------
+// CLI argument parsing
+// ---------------------------------------------------------------------------
+
+function parseArgs(): { state?: string; city?: string; maxResults: number; delayMs: number } {
+  const args = process.argv.slice(2)
+  let state: string | undefined
+  let city: string | undefined
+  let maxResults = 20
+  let delayMs = 200
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--state' && args[i + 1]) {
+      state = args[++i].toUpperCase()
+    } else if (args[i] === '--city' && args[i + 1]) {
+      city = args[++i]
+    } else if (args[i] === '--max-results' && args[i + 1]) {
+      const parsed = parseInt(args[++i], 10)
+      if (!isNaN(parsed) && parsed > 0) {
+        maxResults = Math.min(parsed, 20) // Google Places API max is 20
+      }
+    } else if (args[i] === '--delay' && args[i + 1]) {
+      const parsed = parseInt(args[++i], 10)
+      if (!isNaN(parsed) && parsed >= 0) {
+        delayMs = parsed
+      }
+    }
+  }
+
+  return { state, city, maxResults, delayMs }
+}
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -116,6 +154,7 @@ interface PlacesSearchResponse {
 async function searchPlaces(
   textQuery: string,
   apiKey: string,
+  maxResults: number,
 ): Promise<PlaceResult[]> {
   const url = 'https://places.googleapis.com/v1/places:searchText'
   const fieldMask = [
@@ -136,7 +175,7 @@ async function searchPlaces(
       'X-Goog-Api-Key': apiKey,
       'X-Goog-FieldMask': fieldMask,
     },
-    body: JSON.stringify({ textQuery }),
+    body: JSON.stringify({ textQuery, pageSize: maxResults }),
   })
 
   if (!response.ok) {
@@ -259,23 +298,62 @@ async function main() {
     process.exit(1)
   }
 
+  const { state: filterState, city: filterCity, maxResults, delayMs } = parseArgs()
+
+  // Validate --state argument
+  if (filterState && !(filterState in STATE_CITIES)) {
+    console.error(`ERROR: Unknown state "${filterState}". Use a two-letter state code (e.g. TX, CA).`)
+    process.exit(1)
+  }
+
+  // Validate --city argument (requires --state)
+  if (filterCity && !filterState) {
+    console.error('ERROR: --city requires --state to be specified (e.g. --state TX --city Dallas).')
+    process.exit(1)
+  }
+
+  // Determine scope
+  const statesToProcess = filterState ? [filterState] : Object.keys(STATE_CITIES)
+  const scope = filterCity
+    ? `${filterCity}, ${filterState}`
+    : filterState
+      ? `all cities in ${filterState}`
+      : 'nationwide (all 50 states)'
+
+  console.log(`\nDieselRepairFinder — Google Places Provider Seeder`)
+  console.log(`  Scope       : ${scope}`)
+  console.log(`  Max results : ${maxResults} per query`)
+  console.log(`  Delay       : ${delayMs} ms between requests`)
+  console.log(`  Search terms: ${SEARCH_TERMS.length}`)
+  console.log('')
+
   let totalImported = 0
   let totalSkipped = 0
   let totalErrors = 0
+  let totalApiCalls = 0
 
-  const states = Object.keys(STATE_CITIES)
+  for (const state of statesToProcess) {
+    const allCities = STATE_CITIES[state]
+    const citiesToProcess = filterCity
+      ? allCities.filter((c) => c.toLowerCase() === filterCity.toLowerCase())
+      : allCities
 
-  for (const state of states) {
-    const cities = STATE_CITIES[state]
-    console.log(`\n── ${state} (${cities.length} cities) ──`)
+    if (citiesToProcess.length === 0) {
+      console.error(`ERROR: City "${filterCity}" not found in state ${state}.`)
+      console.error(`  Available cities: ${allCities.join(', ')}`)
+      process.exit(1)
+    }
 
-    for (const city of cities) {
+    console.log(`\n── ${state} (${citiesToProcess.length} ${citiesToProcess.length === 1 ? 'city' : 'cities'}) ──`)
+
+    for (const city of citiesToProcess) {
       for (const { query, category } of SEARCH_TERMS) {
         const textQuery = `${query} ${city} ${state}`
         process.stdout.write(`  Searching: "${textQuery}" ... `)
 
         try {
-          const places = await searchPlaces(textQuery, GOOGLE_PLACES_API_KEY)
+          totalApiCalls++
+          const places = await searchPlaces(textQuery, GOOGLE_PLACES_API_KEY, maxResults)
           let imported = 0
           let skipped = 0
 
@@ -297,19 +375,21 @@ async function main() {
         }
 
         // Respect Google Places API rate limits.
-        // The Places API (New) allows 600 QPM on the free tier; 200 ms keeps
-        // the script well under that ceiling. Increase this value if you are
-        // on a lower quota or observe 429 responses.
-        await sleep(200)
+        // The Places API (New) allows 600 QPM on the free tier; the default
+        // 200 ms keeps the script well under that ceiling. Increase --delay
+        // if you observe 429 responses.
+        await sleep(delayMs)
       }
     }
   }
 
   console.log('\n════════════════════════════════')
   console.log(`Seeding complete!`)
-  console.log(`  Imported : ${totalImported}`)
-  console.log(`  Skipped  : ${totalSkipped}`)
-  console.log(`  Errors   : ${totalErrors}`)
+  console.log(`  Scope      : ${scope}`)
+  console.log(`  API calls  : ${totalApiCalls}`)
+  console.log(`  Imported   : ${totalImported}`)
+  console.log(`  Skipped    : ${totalSkipped}`)
+  console.log(`  Errors     : ${totalErrors}`)
   console.log('════════════════════════════════\n')
 
   await prisma.$disconnect()
