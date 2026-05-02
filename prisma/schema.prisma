@@ -48,6 +48,19 @@ enum LeadStatus {
   NO_RESPONSE
 }
 
+enum ClaimStatus {
+  UNCLAIMED
+  PENDING
+  CLAIMED
+}
+
+enum ClaimRequestStatus {
+  NEW
+  CONTACTED
+  APPROVED
+  DECLINED
+}
+
 model ServiceRequest {
   id                String           @id @default(cuid())
   createdAt         DateTime         @default(now())
@@ -115,7 +128,18 @@ model ServiceProvider {
   source            ProviderSource   @default(MANUAL)
   verificationStatus VerificationStatus @default(UNVERIFIED)
 
+  // Quality / review signals
+  rating            Float?
+  reviewCount       Int              @default(0)
+  isVerified        Boolean          @default(false)
+  lastVerifiedAt    DateTime?
+
+  // Claim tracking
+  claimedAt         DateTime?
+  claimStatus       ClaimStatus      @default(UNCLAIMED)
+
   leads               Lead[]
+  claimRequests       ProviderClaimRequest[]
 
   @@map("DieselMechanic")
 }
@@ -135,4 +159,21 @@ model Lead {
   provider         ServiceProvider @relation(fields: [providerId], references: [id])
 
   @@map("DieselLead")
+}
+
+model ProviderClaimRequest {
+  id           String             @id @default(cuid())
+  createdAt    DateTime           @default(now())
+
+  providerId   String
+  businessName String
+  contactName  String
+  phone        String
+  email        String
+  notes        String?
+  status       ClaimRequestStatus @default(NEW)
+
+  provider     ServiceProvider    @relation(fields: [providerId], references: [id])
+
+  @@map("ProviderClaimRequest")
 }
