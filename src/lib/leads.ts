@@ -172,8 +172,11 @@ export async function getProviderLeadStats() {
     select: {
       id: true,
       businessName: true,
+      city: true,
       state: true,
       tier: true,
+      providerCategory: true,
+      verificationStatus: true,
       leadsReceived: true,
       freeLeadsRemaining: true,
       totalLeadsCharged: true,
@@ -183,6 +186,7 @@ export async function getProviderLeadStats() {
 
   return providers.map((p) => ({
     ...p,
+    category: p.providerCategory as string,
     freeLeadsUsed: Math.max(0, FREE_LEAD_ALLOWANCE - p.freeLeadsRemaining),
     estimatedRevenue: p.totalLeadsCharged * LEAD_PRICE,
   }))

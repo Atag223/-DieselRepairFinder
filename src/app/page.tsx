@@ -74,9 +74,18 @@ const SERVICES = [
 ]
 
 const CITIES = [
-  'Dallas, TX', 'Houston, TX', 'Phoenix, AZ', 'Los Angeles, CA',
-  'Chicago, IL', 'Atlanta, GA', 'Nashville, TN', 'Denver, CO',
-  'Kansas City, MO', 'Memphis, TN', 'Indianapolis, IN', 'Columbus, OH',
+  { label: 'Dallas, TX', state: 'TX', city: 'Dallas' },
+  { label: 'Houston, TX', state: 'TX', city: 'Houston' },
+  { label: 'Phoenix, AZ', state: 'AZ', city: 'Phoenix' },
+  { label: 'Los Angeles, CA', state: 'CA', city: 'Los Angeles' },
+  { label: 'Chicago, IL', state: 'IL', city: 'Chicago' },
+  { label: 'Atlanta, GA', state: 'GA', city: 'Atlanta' },
+  { label: 'Nashville, TN', state: 'TN', city: 'Nashville' },
+  { label: 'Denver, CO', state: 'CO', city: 'Denver' },
+  { label: 'Kansas City, MO', state: 'MO', city: 'Kansas City' },
+  { label: 'Memphis, TN', state: 'TN', city: 'Memphis' },
+  { label: 'Indianapolis, IN', state: 'IN', city: 'Indianapolis' },
+  { label: 'Columbus, OH', state: 'OH', city: 'Columbus' },
 ]
 
 interface FormData {
@@ -188,6 +197,12 @@ export default function HomePage() {
             <a href="#request" className="hidden sm:block text-gray-300 hover:text-white transition-colors">
               Request Service
             </a>
+            <Link
+              href="/providers"
+              className="hidden sm:block text-gray-300 hover:text-white transition-colors text-sm"
+            >
+              Browse Providers
+            </Link>
             <Link
               href="/join"
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors text-sm"
@@ -542,13 +557,14 @@ export default function HomePage() {
             Expanding nationwide — request service in your city today
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {CITIES.map((city) => (
-              <div
-                key={city}
+            {CITIES.map((c) => (
+              <Link
+                key={c.label}
+                href={`/city/${c.state}/${encodeURIComponent(c.city)}`}
                 className="bg-gray-950 border border-gray-800 rounded-xl px-4 py-3 text-center text-sm font-medium text-gray-300 hover:border-blue-700 hover:text-white transition-colors"
               >
-                📍 {city}
-              </div>
+                📍 {c.label}
+              </Link>
             ))}
           </div>
         </div>
