@@ -29,6 +29,21 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       return NextResponse.json({ success: true, provider: updated })
     }
 
+    if (action === 'approve') {
+      const updated = await prisma.serviceProvider.update({
+        where: { id },
+        data: {
+          active: true,
+          verificationStatus: 'VERIFIED',
+          claimStatus: 'CLAIMED',
+          suspendedAt: null,
+          suspendedReason: null,
+          deletedAt: null,
+        },
+      })
+      return NextResponse.json({ success: true, provider: updated })
+    }
+
     if (action === 'reactivate') {
       const updated = await prisma.serviceProvider.update({
         where: { id },

@@ -119,12 +119,20 @@ export default function JoinPage() {
               Diesel<span className="text-blue-500">Repair</span>Finder
             </span>
           </Link>
-          <Link
-            href="/#request"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors text-sm"
-          >
-            Request Service
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/#request"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors text-sm"
+            >
+              Request Service
+            </Link>
+            <Link
+              href="/admin/login"
+              className="hidden sm:block text-gray-500 hover:text-gray-300 transition-colors text-xs"
+            >
+              Admin
+            </Link>
+          </div>
         </div>
       </nav>
 

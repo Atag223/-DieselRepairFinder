@@ -267,6 +267,7 @@ export default async function AdminProvidersPage({
                           isActive={p.active}
                           isSuspended={isSuspended}
                           isDeleted={isDeleted}
+                          isPending={!p.active && !isSuspended && !isDeleted}
                         />
                       </td>
                     </tr>
