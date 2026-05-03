@@ -17,10 +17,16 @@ interface SearchParams {
   state?: string
   city?: string
   category?: string
+  showDeleted?: string
 }
 
 async function getProviders(filters: SearchParams) {
   const where: Record<string, unknown> = {}
+
+  // By default, hide soft-deleted providers; show them only when showDeleted=1
+  if (filters.showDeleted !== '1') {
+    where.deletedAt = null
+  }
 
   if (filters.search) {
     where.businessName = { contains: filters.search, mode: 'insensitive' }
@@ -133,13 +139,23 @@ export default async function AdminProvidersPage({
             <option value="MOBILE_TIRE_SERVICE">Mobile Tire Service</option>
             <option value="HEAVY_DUTY_WRECKER">Heavy-Duty Wrecker</option>
           </select>
+          <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer px-1">
+            <input
+              type="checkbox"
+              name="showDeleted"
+              value="1"
+              defaultChecked={params.showDeleted === '1'}
+              className="accent-red-500"
+            />
+            Show deleted
+          </label>
           <button
             type="submit"
             className="bg-gray-800 hover:bg-gray-700 text-white text-sm px-4 py-2 rounded-lg transition-colors"
           >
             Filter
           </button>
-          {(params.search || params.state || params.city || params.category) && (
+          {(params.search || params.state || params.city || params.category || params.showDeleted) && (
             <a
               href="/admin/providers"
               className="text-gray-400 hover:text-white text-sm px-3 py-2 transition-colors"
