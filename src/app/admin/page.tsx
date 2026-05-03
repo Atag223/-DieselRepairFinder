@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { getProviderLeadStats } from '@/lib/leads'
 import Link from 'next/link'
 import { ClaimRequestStatus } from '@prisma/client'
+import AdminLogout from './AdminLogout'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,7 +44,15 @@ export default async function AdminPage() {
               Diesel<span className="text-blue-500">Repair</span>Finder
             </span>
           </Link>
-          <span className="text-gray-400 text-sm">Admin Dashboard</span>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/admin/providers"
+              className="text-blue-400 hover:text-blue-300 text-sm transition-colors"
+            >
+              Manage Providers
+            </Link>
+            <AdminLogout />
+          </div>
         </div>
       </nav>
 
@@ -106,6 +115,33 @@ export default async function AdminPage() {
                     </div>
                   ))}
                 </div>
+                <div className="grid sm:grid-cols-3 gap-4 mt-4">
+                  {[
+                    { label: 'Active', value: providerSummary.total, cls: 'text-green-400' },
+                    { label: 'Suspended', value: providerSummary.suspended, cls: 'text-yellow-400' },
+                    { label: 'Unclaimed', value: providerSummary.byClaim.unclaimed, cls: 'text-gray-400' },
+                  ].map((c) => (
+                    <div key={c.label} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                      <div className="text-sm text-gray-400 mb-1">{c.label}</div>
+                      <div className={`text-xl font-bold ${c.cls}`}>{c.value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* By state */}
+                {providerSummary.byState.length > 0 && (
+                  <div className="mt-4">
+                    <h3 className="text-sm font-semibold text-gray-400 mb-3">Top States</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                      {providerSummary.byState.map((s) => (
+                        <div key={s.state} className="bg-gray-900 border border-gray-800 rounded-lg p-3 text-center">
+                          <div className="text-base font-bold text-white">{s.count}</div>
+                          <div className="text-xs text-gray-400">{s.state}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -264,22 +300,31 @@ async function fetchClaimRequests() {
 }
 
 async function fetchProviderSummary() {
-  const [total, byCategory, byVerification, byClaim] = await Promise.all([
-    prisma.serviceProvider.count({ where: { active: true } }),
+  const [total, totalAll, suspended, byCategory, byVerification, byClaim, byState] = await Promise.all([
+    prisma.serviceProvider.count({ where: { active: true, deletedAt: null } }),
+    prisma.serviceProvider.count({ where: { deletedAt: null } }),
+    prisma.serviceProvider.count({ where: { active: false, suspendedAt: { not: null }, deletedAt: null } }),
     prisma.serviceProvider.groupBy({
       by: ['providerCategory'],
-      where: { active: true },
+      where: { active: true, deletedAt: null },
       _count: true,
     }),
     prisma.serviceProvider.groupBy({
       by: ['verificationStatus'],
-      where: { active: true },
+      where: { active: true, deletedAt: null },
       _count: true,
     }),
     prisma.serviceProvider.groupBy({
       by: ['claimStatus'],
-      where: { active: true },
+      where: { active: true, deletedAt: null },
       _count: true,
+    }),
+    prisma.serviceProvider.groupBy({
+      by: ['state'],
+      where: { active: true, deletedAt: null },
+      _count: true,
+      orderBy: { _count: { state: 'desc' } },
+      take: 10,
     }),
   ])
 
@@ -289,6 +334,8 @@ async function fetchProviderSummary() {
 
   return {
     total,
+    totalAll,
+    suspended,
     byCategory: {
       DIESEL_MECHANIC: catMap.DIESEL_MECHANIC ?? 0,
       MOBILE_TIRE_SERVICE: catMap.MOBILE_TIRE_SERVICE ?? 0,
@@ -304,5 +351,6 @@ async function fetchProviderSummary() {
       pending: claimMap.PENDING ?? 0,
       claimed: claimMap.CLAIMED ?? 0,
     },
+    byState: byState.map((r) => ({ state: r.state, count: r._count })),
   }
 }

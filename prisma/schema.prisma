@@ -138,6 +138,11 @@ model ServiceProvider {
   claimedAt         DateTime?
   claimStatus       ClaimStatus      @default(UNCLAIMED)
 
+  // Suspend / soft-delete tracking
+  suspendedAt       DateTime?
+  suspendedReason   String?
+  deletedAt         DateTime?
+
   leads               Lead[]
   claimRequests       ProviderClaimRequest[]
 
