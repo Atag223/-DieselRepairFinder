@@ -8,14 +8,38 @@ interface Props {
   isActive: boolean
   isSuspended: boolean
   isDeleted: boolean
+  isPending: boolean
 }
 
-export default function AdminProviderActions({ providerId, isActive, isSuspended, isDeleted }: Props) {
+export default function AdminProviderActions({ providerId, isActive, isSuspended, isDeleted, isPending }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [showSuspendModal, setShowSuspendModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [suspendReason, setSuspendReason] = useState('')
+  const [actionError, setActionError] = useState('')
+
+  async function handleApprove() {
+    setLoading(true)
+    setActionError('')
+    try {
+      const res = await fetch(`/api/admin/providers/${providerId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'approve' }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setActionError(data.error ?? 'Failed to approve provider')
+        return
+      }
+      router.refresh()
+    } catch {
+      setActionError('Network error. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   async function handleSuspend() {
     setLoading(true)
@@ -67,6 +91,10 @@ export default function AdminProviderActions({ providerId, isActive, isSuspended
           Edit
         </a>
 
+        {actionError && (
+          <span className="text-xs text-red-400">{actionError}</span>
+        )}
+
         {isDeleted ? (
           <button
             onClick={handleReactivate}
@@ -90,6 +118,14 @@ export default function AdminProviderActions({ providerId, isActive, isSuspended
             className="text-xs px-2.5 py-1 rounded bg-green-900/60 hover:bg-green-800 text-green-300 transition-colors disabled:opacity-50"
           >
             Reactivate
+          </button>
+        ) : isPending ? (
+          <button
+            onClick={handleApprove}
+            disabled={loading}
+            className="text-xs px-2.5 py-1 rounded bg-green-900/60 hover:bg-green-800 text-green-300 transition-colors disabled:opacity-50"
+          >
+            Approve
           </button>
         ) : null}
 

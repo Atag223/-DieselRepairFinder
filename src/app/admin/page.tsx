@@ -17,13 +17,15 @@ export default async function AdminPage() {
   let stats: Awaited<ReturnType<typeof getProviderLeadStats>> = []
   let claimRequests: Awaited<ReturnType<typeof fetchClaimRequests>> = []
   let providerSummary: Awaited<ReturnType<typeof fetchProviderSummary>> | null = null
+  let pendingApplications: Awaited<ReturnType<typeof fetchPendingApplications>> = []
   let error: string | null = null
 
   try {
-    ;[stats, claimRequests, providerSummary] = await Promise.all([
+    ;[stats, claimRequests, providerSummary, pendingApplications] = await Promise.all([
       getProviderLeadStats(),
       fetchClaimRequests(),
       fetchProviderSummary(),
+      fetchPendingApplications(),
     ])
   } catch (err) {
     console.error('Admin page error:', err)
@@ -83,6 +85,67 @@ export default async function AdminPage() {
                 </div>
               ))}
             </div>
+
+            {/* Pending Applications */}
+            {pendingApplications.length > 0 && (
+              <div className="mb-10">
+                <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
+                  <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse inline-block" />
+                  Pending Applications
+                  <span className="text-sm text-yellow-400 font-normal">
+                    ({pendingApplications.length})
+                  </span>
+                </h2>
+                <p className="text-gray-400 text-sm mb-4">
+                  Providers who submitted via the /join form and are awaiting review.
+                </p>
+                <div className="overflow-x-auto rounded-xl border border-yellow-900/60">
+                  <table className="w-full text-sm">
+                    <thead className="bg-yellow-950/40 text-gray-400 text-left">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">Business</th>
+                        <th className="px-4 py-3 font-medium">Contact</th>
+                        <th className="px-4 py-3 font-medium">Location</th>
+                        <th className="px-4 py-3 font-medium">Category</th>
+                        <th className="px-4 py-3 font-medium">Submitted</th>
+                        <th className="px-4 py-3 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800">
+                      {pendingApplications.map((p) => (
+                        <tr key={p.id} className="hover:bg-gray-900/50 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-white">{p.businessName}</div>
+                            {p.email && <div className="text-gray-500 text-xs">{p.email}</div>}
+                          </td>
+                          <td className="px-4 py-3 text-gray-300">
+                            <div>{p.contactName ?? '–'}</div>
+                            {p.phone && <div className="text-gray-500 text-xs">{p.phone}</div>}
+                          </td>
+                          <td className="px-4 py-3 text-gray-400">
+                            {p.city}, {p.state}
+                          </td>
+                          <td className="px-4 py-3 text-gray-400 text-xs">
+                            {p.providerCategory.replace(/_/g, ' ')}
+                          </td>
+                          <td className="px-4 py-3 text-gray-400 text-xs">
+                            {p.createdAt.toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3">
+                            <Link
+                              href={`/admin/providers/${p.id}/edit`}
+                              className="text-xs px-2.5 py-1 rounded bg-yellow-900/60 hover:bg-yellow-800 text-yellow-300 transition-colors mr-2"
+                            >
+                              Review
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* Provider breakdown */}
             {providerSummary && (
@@ -353,4 +416,28 @@ async function fetchProviderSummary() {
     },
     byState: byState.map((r) => ({ state: r.state, count: r._count })),
   }
+}
+
+async function fetchPendingApplications() {
+  return prisma.serviceProvider.findMany({
+    where: {
+      active: false,
+      suspendedAt: null,
+      deletedAt: null,
+      source: 'MANUAL',
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+    select: {
+      id: true,
+      businessName: true,
+      contactName: true,
+      phone: true,
+      email: true,
+      city: true,
+      state: true,
+      providerCategory: true,
+      createdAt: true,
+    },
+  })
 }

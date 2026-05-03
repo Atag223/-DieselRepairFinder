@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Validate required fields
-    if (!businessName || !contactName || !phone || !email || !city || !state || !serviceRadius) {
+    if (!businessName || !contactName || !phone || !email || !city || !state) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -52,12 +52,18 @@ export async function POST(request: NextRequest) {
         email,
         city,
         state,
-        serviceRadius: Number(serviceRadius),
+        serviceRadius: serviceRadius ? Number(serviceRadius) : null,
         website: website || null,
         is24_7: Boolean(is24_7),
         services: parseServices(services),
         notes: notes || null,
         providerCategory: parseProviderCategory(providerCategory),
+        // Application flow defaults — inactive until admin approves
+        active: false,
+        verificationStatus: 'UNVERIFIED',
+        claimStatus: 'PENDING',
+        tier: 'FREE',
+        source: 'MANUAL',
       },
     })
 

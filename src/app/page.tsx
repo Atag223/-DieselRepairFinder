@@ -209,6 +209,12 @@ export default function HomePage() {
             >
               Join as a Provider
             </Link>
+            <Link
+              href="/admin/login"
+              className="hidden sm:block text-gray-500 hover:text-gray-300 transition-colors text-xs"
+            >
+              Admin
+            </Link>
           </div>
         </div>
       </nav>
