@@ -43,14 +43,22 @@ export default function AdminProviderActions({ providerId, isActive, isSuspended
 
   async function handleSuspend() {
     setLoading(true)
+    setActionError('')
     try {
-      await fetch(`/api/admin/providers/${providerId}`, {
+      const res = await fetch(`/api/admin/providers/${providerId}/suspend`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'suspend', reason: suspendReason }),
+        body: JSON.stringify({ reason: suspendReason }),
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setActionError(data.error ?? 'Failed to suspend provider')
+        return
+      }
       setShowSuspendModal(false)
       router.refresh()
+    } catch {
+      setActionError('Network error. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -58,13 +66,20 @@ export default function AdminProviderActions({ providerId, isActive, isSuspended
 
   async function handleReactivate() {
     setLoading(true)
+    setActionError('')
     try {
-      await fetch(`/api/admin/providers/${providerId}`, {
+      const res = await fetch(`/api/admin/providers/${providerId}/reactivate`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reactivate' }),
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setActionError(data.error ?? 'Failed to reactivate provider')
+        return
+      }
       router.refresh()
+    } catch {
+      setActionError('Network error. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -72,10 +87,21 @@ export default function AdminProviderActions({ providerId, isActive, isSuspended
 
   async function handleDelete() {
     setLoading(true)
+    setActionError('')
     try {
-      await fetch(`/api/admin/providers/${providerId}`, { method: 'DELETE' })
+      const res = await fetch(`/api/admin/providers/${providerId}/delete`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setActionError(data.error ?? 'Failed to delete provider')
+        return
+      }
       setShowDeleteModal(false)
       router.refresh()
+    } catch {
+      setActionError('Network error. Please try again.')
     } finally {
       setLoading(false)
     }
