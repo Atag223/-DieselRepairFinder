@@ -48,6 +48,7 @@ export async function selectProviders(params: {
   const providers = await prisma.serviceProvider.findMany({
     where: {
       active: true,
+      deletedAt: null,
       providerCategory: params.category as never,
       ...(params.state ? { state: params.state } : {}),
     },
@@ -169,6 +170,7 @@ export async function createLeadsForRequest(
  */
 export async function getProviderLeadStats() {
   const providers = await prisma.serviceProvider.findMany({
+    where: { deletedAt: null },
     select: {
       id: true,
       businessName: true,

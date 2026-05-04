@@ -18,10 +18,11 @@ export default async function ClaimPage({ params }: Props) {
       city: true,
       state: true,
       claimStatus: true,
+      deletedAt: true,
     },
   })
 
-  if (!provider) notFound()
+  if (!provider || provider.deletedAt) notFound()
 
   const alreadyClaimed = provider.claimStatus === 'CLAIMED'
 

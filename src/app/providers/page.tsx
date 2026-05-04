@@ -36,7 +36,7 @@ function sortProviders(providers: ProviderCardData[]): ProviderCardData[] {
 }
 
 async function getProviders(state: string, city: string, category: string) {
-  const where: Record<string, unknown> = { active: true }
+  const where: Record<string, unknown> = { active: true, deletedAt: null }
   if (state) where.state = state
   if (city) where.city = { equals: city, mode: 'insensitive' }
   if (category) where.providerCategory = category as ProviderCategory
@@ -69,7 +69,7 @@ async function getProviders(state: string, city: string, category: string) {
 async function getCitiesForState(state: string): Promise<string[]> {
   if (!state) return []
   const rows = await prisma.serviceProvider.findMany({
-    where: { active: true, state },
+    where: { active: true, deletedAt: null, state },
     select: { city: true },
     distinct: ['city'],
     orderBy: { city: 'asc' },

@@ -62,6 +62,7 @@ export default async function CityPage({ params }: Props) {
   const rows = await prisma.serviceProvider.findMany({
     where: {
       active: true,
+      deletedAt: null,
       state,
       city: { equals: city, mode: 'insensitive' },
     },
@@ -77,7 +78,7 @@ export default async function CityPage({ params }: Props) {
 
   // Count nearby cities too (same state)
   const nearbyCities = await prisma.serviceProvider.findMany({
-    where: { active: true, state },
+    where: { active: true, deletedAt: null, state },
     select: { city: true },
     distinct: ['city'],
     orderBy: { city: 'asc' },
