@@ -57,7 +57,7 @@ export default async function StatePage({ params }: Props) {
   if (!stateName) notFound()
 
   const rows = await prisma.serviceProvider.findMany({
-    where: { active: true, state },
+    where: { active: true, deletedAt: null, state },
     select: {
       id: true, businessName: true, phone: true, website: true, city: true, state: true,
       services: true, providerCategory: true, tier: true, verificationStatus: true,
