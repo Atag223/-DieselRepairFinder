@@ -204,7 +204,7 @@ export default function HomePage() {
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 text-balance">
             Mobile Diesel Repair,{' '}
-            <span className="text-blue-500">Tire Service</span> &amp;
+            <span className="text-blue-500">Tire Service</span>{' '}&{' '}
             <br className="hidden sm:block" />
             Heavy-Duty Towing — Near You
           </h1>

@@ -14,6 +14,8 @@ export default function SiteNav() {
   const pathname = usePathname()
 
   function isActive(href: string) {
+    // Hash-only links (e.g. /#request) are never highlighted as active
+    if (href.includes('#')) return false
     if (href === '/') return pathname === '/'
     return pathname === href || pathname.startsWith(href + '/')
   }
