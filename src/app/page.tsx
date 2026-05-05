@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import SiteNav from './components/SiteNav'
 
 type ProviderCategory = 'DIESEL_MECHANIC' | 'MOBILE_TIRE_SERVICE' | 'HEAVY_DUTY_WRECKER'
 
@@ -184,72 +185,57 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Nav */}
-      <nav className="border-b border-gray-800 bg-black/90 sticky top-0 z-50 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">🚛</span>
-            <span className="font-bold text-lg text-white">
-              Diesel<span className="text-blue-500">Repair</span>Finder
-            </span>
-          </div>
-          <div className="flex items-center gap-4">
-            <a href="#request" className="hidden sm:block text-gray-300 hover:text-white transition-colors">
-              Request Service
-            </a>
-            <Link
-              href="/providers"
-              className="hidden sm:block text-gray-300 hover:text-white transition-colors text-sm"
-            >
-              Browse Providers
-            </Link>
-            <Link
-              href="/join"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors text-sm"
-            >
-              Join as a Provider
-            </Link>
-            <Link
-              href="/admin/login"
-              className="hidden sm:block text-gray-500 hover:text-gray-300 transition-colors text-xs"
-            >
-              Admin
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <SiteNav />
 
       {/* Hero */}
-      <section className="relative py-20 sm:py-28 px-4 bg-gradient-to-b from-gray-950 to-black overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-950/40 via-black to-black pointer-events-none" />
+      <section className="relative py-24 sm:py-36 px-4 overflow-hidden">
+        {/* Background: gradient simulating dark truck/road theme */}
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,_#0a0a0a_0%,_#0d1a2e_40%,_#0a0f1a_70%,_#000_100%)]" />
+        {/* Radial accent */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,_rgba(30,64,120,0.45),_transparent)]" />
+        {/* Dark overlay stripe for readability */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent" />
+
         <div className="relative max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-blue-950/60 border border-blue-800/50 rounded-full px-4 py-1.5 text-sm text-blue-300 mb-6">
             <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-            Providers Available Now
+            Providers Available Now — 24/7
           </div>
+
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 text-balance">
-            Roadside Truck Help
-            <br />
-            <span className="text-blue-500">Near You — Fast</span>
+            Mobile Diesel Repair,{' '}
+            <span className="text-blue-500">Tire Service</span> &amp;
+            <br className="hidden sm:block" />
+            Heavy-Duty Towing — Near You
           </h1>
+
           <p className="text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto mb-10">
-            Broken down on the road? Don&apos;t wait. Our network of mobile diesel mechanics,
-            tire service pros, and heavy-duty wreckers comes to you — roadside, truckstop, or
-            job site. Available 24/7.
+            Find verified mobile diesel mechanics, roadside tire service pros, and heavy-duty
+            wreckers anywhere in the US. Get back on the road fast — no shop, no tow required.
           </p>
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a
-              href="#request"
+            <Link
+              href="/providers"
               className="bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold px-8 py-4 rounded-xl transition-colors shadow-lg shadow-blue-900/40"
             >
-              🔧 Request Help Now
-            </a>
+              🔍 Browse Providers
+            </Link>
             <Link
               href="/join"
               className="border border-gray-600 hover:border-gray-400 text-gray-200 hover:text-white text-lg font-semibold px-8 py-4 rounded-xl transition-colors"
             >
-              Join as a Provider →
+              Join as Provider →
             </Link>
+          </div>
+
+          {/* Trust badges */}
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-6 text-sm text-gray-500">
+            <span>🔧 Diesel Mechanics</span>
+            <span className="text-gray-700">|</span>
+            <span>🛞 Mobile Tire Service</span>
+            <span className="text-gray-700">|</span>
+            <span>🚨 Heavy-Duty Towing</span>
           </div>
         </div>
       </section>

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import ClaimForm from './ClaimForm'
+import SiteNav from '@/app/components/SiteNav'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -28,20 +29,7 @@ export default async function ClaimPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Nav */}
-      <nav className="border-b border-gray-800 bg-black/90 sticky top-0 z-50 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl">🚛</span>
-            <span className="font-bold text-lg text-white">
-              Diesel<span className="text-blue-500">Repair</span>Finder
-            </span>
-          </Link>
-          <Link href="/providers" className="text-blue-400 text-sm">
-            ← Back to Directory
-          </Link>
-        </div>
-      </nav>
+      <SiteNav />
 
       <main className="max-w-xl mx-auto px-4 py-12">
         <div className="mb-8">
