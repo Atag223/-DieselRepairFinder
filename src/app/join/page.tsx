@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import SiteNav from '@/app/components/SiteNav'
 
 const US_STATES = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS',
@@ -110,31 +111,7 @@ export default function JoinPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Nav */}
-      <nav className="border-b border-gray-800 bg-black/90 sticky top-0 z-50 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl">🚛</span>
-            <span className="font-bold text-lg text-white">
-              Diesel<span className="text-blue-500">Repair</span>Finder
-            </span>
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/#request"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors text-sm"
-            >
-              Request Service
-            </Link>
-            <Link
-              href="/admin/login"
-              className="hidden sm:block text-gray-500 hover:text-gray-300 transition-colors text-xs"
-            >
-              Admin
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <SiteNav />
 
       {/* Hero */}
       <section className="py-16 sm:py-24 px-4 bg-gradient-to-b from-blue-950/30 to-black text-center">

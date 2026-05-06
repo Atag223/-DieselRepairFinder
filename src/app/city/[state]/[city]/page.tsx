@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { ProviderTier } from '@prisma/client'
 import ProviderCard, { ProviderCardData } from '@/app/providers/ProviderCard'
+import SiteNav from '@/app/components/SiteNav'
 
 export const dynamic = 'force-dynamic'
 
@@ -86,25 +87,7 @@ export default async function CityPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Nav */}
-      <nav className="border-b border-gray-800 bg-black/90 sticky top-0 z-50 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl">🚛</span>
-            <span className="font-bold text-lg text-white">
-              Diesel<span className="text-blue-500">Repair</span>Finder
-            </span>
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/providers" className="text-gray-400 hover:text-white text-sm">
-              All Providers
-            </Link>
-            <Link href="/" className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
-              Get Help Now
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <SiteNav />
 
       <main className="max-w-7xl mx-auto px-4 py-10">
         {/* Breadcrumb */}
