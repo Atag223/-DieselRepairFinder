@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import SiteNav from '@/app/components/SiteNav'
+import { BILLING_PACKAGES } from '@/lib/billing'
 
 export default function PricingPage() {
   return (
@@ -65,30 +66,31 @@ export default function PricingPage() {
             Fund your account whenever you need. Credits never expire.
           </p>
           <div className="grid sm:grid-cols-3 gap-4">
-            {[
-              { credits: 5, price: 125 },
-              { credits: 10, price: 250, popular: true },
-              { credits: 20, price: 500 },
-            ].map((pkg) => (
+          {BILLING_PACKAGES.map((pkg, idx) => {
+            const popular = idx === 1
+            return (
               <div
                 key={pkg.credits}
                 className={`relative border rounded-xl p-5 text-center ${
-                  pkg.popular
+                  popular
                     ? 'border-blue-500 bg-blue-950/30'
                     : 'border-gray-700 bg-gray-900'
                 }`}
               >
-                {pkg.popular && (
+                {popular && (
                   <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-bold px-3 py-0.5 rounded-full">
                     Most Popular
                   </span>
                 )}
                 <div className="text-3xl font-extrabold text-white mb-1">{pkg.credits}</div>
                 <div className="text-gray-400 text-sm mb-2">leads</div>
-                <div className="text-2xl font-bold text-blue-400">${pkg.price}</div>
-                <div className="text-gray-500 text-xs">${pkg.price / pkg.credits} per lead</div>
+                <div className="text-2xl font-bold text-blue-400">${pkg.amountCents / 100}</div>
+                <div className="text-gray-500 text-xs">
+                  ${pkg.amountCents / 100 / pkg.credits} per lead
+                </div>
               </div>
-            ))}
+            )
+          })}
           </div>
         </div>
 

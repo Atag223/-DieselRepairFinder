@@ -1,20 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-
-interface Package {
-  credits: number
-  amountCents: number
-  label: string
-  popular?: boolean
-}
-
-const PACKAGES: Package[] = [
-  { credits: 5, amountCents: 12500, label: '5 leads – $125' },
-  { credits: 10, amountCents: 25000, label: '10 leads – $250', popular: true },
-  { credits: 20, amountCents: 50000, label: '20 leads – $500' },
-]
+import { BILLING_PACKAGES } from '@/lib/billing'
 
 interface Props {
   providerId: string
@@ -107,41 +94,45 @@ export default function BillingForm({
         )}
 
         <div className="grid sm:grid-cols-3 gap-4">
-          {PACKAGES.map((pkg) => (
-            <div
-              key={pkg.credits}
-              className={`relative border rounded-xl p-5 flex flex-col items-center text-center ${
-                pkg.popular
-                  ? 'border-blue-500 bg-blue-950/30'
-                  : 'border-gray-700 bg-gray-900'
-              }`}
-            >
-              {pkg.popular && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-bold px-3 py-0.5 rounded-full">
-                  Most Popular
-                </span>
-              )}
-              <div className="text-4xl font-extrabold text-white mb-1">{pkg.credits}</div>
-              <div className="text-gray-400 text-sm mb-1">leads</div>
-              <div className="text-2xl font-bold text-blue-400 mb-1">
-                ${(pkg.amountCents / 100).toFixed(0)}
-              </div>
-              <div className="text-gray-500 text-xs mb-4">
-                ${(pkg.amountCents / 100 / pkg.credits).toFixed(0)} per lead
-              </div>
-              <button
-                onClick={() => handleBuy(pkg.credits)}
-                disabled={loading !== null}
-                className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 ${
-                  pkg.popular
-                    ? 'bg-blue-600 hover:bg-blue-500 text-white'
-                    : 'bg-gray-800 hover:bg-gray-700 text-white'
+          {BILLING_PACKAGES.map((pkg, idx) => {
+            const popular = idx === 1
+            const pricePerLead = pkg.amountCents / 100 / pkg.credits
+            return (
+              <div
+                key={pkg.credits}
+                className={`relative border rounded-xl p-5 flex flex-col items-center text-center ${
+                  popular
+                    ? 'border-blue-500 bg-blue-950/30'
+                    : 'border-gray-700 bg-gray-900'
                 }`}
               >
-                {loading === pkg.credits ? 'Redirecting…' : `Buy ${pkg.credits} Credits`}
-              </button>
-            </div>
-          ))}
+                {popular && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-bold px-3 py-0.5 rounded-full">
+                    Most Popular
+                  </span>
+                )}
+                <div className="text-4xl font-extrabold text-white mb-1">{pkg.credits}</div>
+                <div className="text-gray-400 text-sm mb-1">leads</div>
+                <div className="text-2xl font-bold text-blue-400 mb-1">
+                  ${(pkg.amountCents / 100).toFixed(0)}
+                </div>
+                <div className="text-gray-500 text-xs mb-4">
+                  ${pricePerLead.toFixed(0)} per lead
+                </div>
+                <button
+                  onClick={() => handleBuy(pkg.credits)}
+                  disabled={loading !== null}
+                  className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 ${
+                    popular
+                      ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                      : 'bg-gray-800 hover:bg-gray-700 text-white'
+                  }`}
+                >
+                  {loading === pkg.credits ? 'Redirecting…' : `Buy ${pkg.credits} Credits`}
+                </button>
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>

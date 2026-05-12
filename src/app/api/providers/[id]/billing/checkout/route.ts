@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { prisma } from '@/lib/prisma'
-
-const PACKAGES = [
-  { credits: 5, amountCents: 12500, label: '5 leads – $125' },
-  { credits: 10, amountCents: 25000, label: '10 leads – $250' },
-  { credits: 20, amountCents: 50000, label: '20 leads – $500' },
-]
+import { BILLING_PACKAGES } from '@/lib/billing'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -35,7 +30,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const pkg = PACKAGES.find((p) => p.credits === credits)
+  const pkg = BILLING_PACKAGES.find((p) => p.credits === credits)
   if (!pkg) {
     return NextResponse.json(
       { error: `Invalid credit package. Choose 5, 10, or 20 credits.` },
@@ -61,6 +56,8 @@ export async function POST(request: NextRequest, { params }: Params) {
     })
   }
 
+  const pricePerLead = pkg.amountCents / 100 / pkg.credits
+
   const session = await stripe.checkout.sessions.create({
     customer: stripeCustomerId,
     payment_method_types: ['card'],
@@ -72,7 +69,7 @@ export async function POST(request: NextRequest, { params }: Params) {
           unit_amount: pkg.amountCents,
           product_data: {
             name: `DieselRepairFinder Lead Credits – ${pkg.credits} leads`,
-            description: `${pkg.credits} qualified lead credits at $${pkg.amountCents / 100 / pkg.credits} each`,
+            description: `${pkg.credits} qualified lead credits at $${pricePerLead} each`,
           },
         },
         quantity: 1,
