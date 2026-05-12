@@ -2,17 +2,54 @@ import { prisma } from '@/lib/prisma'
 import { ProviderTier, LeadStatus } from '@prisma/client'
 
 export const FREE_LEAD_ALLOWANCE = 3
-/** Default price charged per lead once a provider's free allowance is exhausted. */
+/** Price per lead in dollars */
 export const LEAD_PRICE = 25
+/** Price per lead in cents (for Stripe) */
+export const LEAD_PRICE_CENTS = 2500
+/** Credits consumed per lead */
+export const LEAD_PRICE_CREDITS = 1
+
 const MAX_PROVIDERS_PER_REQUEST = 3
 /** How many hours must pass before a provider can receive another lead from any request. */
 const RECENT_LEAD_WINDOW_HOURS = 1
 
 /**
- * Selects up to MAX_PROVIDERS_PER_REQUEST active providers for a service request,
- * ordered by tier priority (PREMIUM → FEATURED → FREE), filtered by state and category.
- * Providers that already received a lead in the last RECENT_LEAD_WINDOW_HOURS are excluded
- * to avoid provider fatigue / lead spam.
+ * Issues 3 free lead credits to a provider if not already issued.
+ * Should be called when a provider is approved or a claim is approved.
+ */
+export async function issueInitialFreeCredits(providerId: string): Promise<boolean> {
+  const provider = await prisma.serviceProvider.findUnique({
+    where: { id: providerId },
+    select: { freeLeadCreditsIssued: true },
+  })
+
+  if (!provider || provider.freeLeadCreditsIssued) return false
+
+  await prisma.$transaction([
+    prisma.serviceProvider.update({
+      where: { id: providerId },
+      data: {
+        leadCredits: { increment: FREE_LEAD_ALLOWANCE },
+        freeLeadCreditsIssued: true,
+      },
+    }),
+    prisma.leadCreditTransaction.create({
+      data: {
+        providerId,
+        amount: FREE_LEAD_ALLOWANCE,
+        type: 'FREE_CREDIT',
+        note: 'Initial free lead credits',
+      },
+    }),
+  ])
+
+  return true
+}
+
+/**
+ * Selects up to MAX_PROVIDERS_PER_REQUEST active providers for a service request.
+ * Only includes providers that have leadCredits > 0 OR stripeAccountBalanceCents >= LEAD_PRICE_CENTS.
+ * Ordered by tier priority (PREMIUM → FEATURED → FREE), filtered by state and category.
  */
 export async function selectProviders(params: {
   state: string | null
@@ -49,17 +86,19 @@ export async function selectProviders(params: {
     where: {
       active: true,
       deletedAt: null,
+      suspendedAt: null,
       providerCategory: params.category as never,
       ...(params.state ? { state: params.state } : {}),
+      // Only route to providers with credits or prepaid balance
+      OR: [
+        { leadCredits: { gt: 0 } },
+        { stripeAccountBalanceCents: { gte: LEAD_PRICE_CENTS } },
+      ],
     },
-    orderBy: [
-      // Sort by tier index by fetching all and sorting in-memory below
-      { createdAt: 'asc' },
-    ],
+    orderBy: [{ createdAt: 'asc' }],
   })
 
   // Sort by tier priority (PREMIUM → FEATURED → FREE).
-  // Prisma does not support ordering by enum value directly, so we sort in-memory.
   const sorted = providers
     .filter((p) => !alreadySentIds.has(p.id))
     .sort((a, b) => tierOrder.indexOf(a.tier) - tierOrder.indexOf(b.tier))
@@ -73,19 +112,25 @@ export async function selectProviders(params: {
         ...sorted.filter((p) => recentProviderIds.has(p.id)),
       ].slice(0, MAX_PROVIDERS_PER_REQUEST)
 
-  console.log('[leads] Providers selected', {
-    serviceRequestId: params.serviceRequestId ?? null,
-    count: selected.length,
-    providers: selected.map((p) => ({ providerId: p.id, name: p.businessName, tier: p.tier })),
-  })
+  if (selected.length === 0) {
+    console.log('[leads] No eligible credited providers available', {
+      serviceRequestId: params.serviceRequestId ?? null,
+    })
+  } else {
+    console.log('[leads] Providers selected', {
+      serviceRequestId: params.serviceRequestId ?? null,
+      count: selected.length,
+      providers: selected.map((p) => ({ providerId: p.id, name: p.businessName, tier: p.tier })),
+    })
+  }
 
   return selected
 }
 
 /**
- * Creates Lead records for a service request and updates provider counters.
- * Determines whether each lead is billable based on free lead allowance.
- * Skips providers that already have a lead for this request (deduplication).
+ * Creates Lead records for a service request and decrements provider credits.
+ * If provider has leadCredits > 0, uses a credit. Otherwise uses stripeAccountBalanceCents.
+ * Creates LeadCreditTransaction records for each lead sent.
  */
 export async function createLeadsForRequest(
   serviceRequestId: string,
@@ -121,45 +166,88 @@ export async function createLeadsForRequest(
 
   await Promise.all(
     providers.map(async (provider) => {
-      const charged = provider.freeLeadsRemaining <= 0
+      const useCredit = provider.leadCredits > 0
+      const useBalance = !useCredit && provider.stripeAccountBalanceCents >= LEAD_PRICE_CENTS
+
+      if (!useCredit && !useBalance) {
+        console.log('[leads] Skipping provider with no credits/balance', {
+          serviceRequestId,
+          providerId: provider.id,
+        })
+        return
+      }
+
+      const charged = !useCredit && useBalance
 
       console.log('[leads] Creating lead', {
         serviceRequestId,
         providerId: provider.id,
-        charged,
-        price: charged ? LEAD_PRICE : 0,
+        useCredit,
+        useBalance,
       })
 
-      await prisma.$transaction([
-        prisma.lead.create({
-          data: {
-            serviceRequestId,
-            providerId: provider.id,
-            status: LeadStatus.SENT,
-            charged,
-            price: charged ? LEAD_PRICE : 0,
-          },
-        }),
-        prisma.serviceProvider.update({
-          where: { id: provider.id },
-          data: {
-            leadsReceived: { increment: 1 },
-            freeLeadsRemaining: charged
-              ? undefined
-              : { decrement: 1 },
-            totalLeadsCharged: charged
-              ? { increment: 1 }
-              : undefined,
-          },
-        }),
-      ])
+      if (useCredit) {
+        await prisma.$transaction([
+          prisma.lead.create({
+            data: {
+              serviceRequestId,
+              providerId: provider.id,
+              status: LeadStatus.SENT,
+              charged: false,
+              price: 0,
+            },
+          }),
+          prisma.serviceProvider.update({
+            where: { id: provider.id },
+            data: {
+              leadCredits: { decrement: 1 },
+              leadsReceived: { increment: 1 },
+            },
+          }),
+          prisma.leadCreditTransaction.create({
+            data: {
+              providerId: provider.id,
+              amount: -1,
+              type: 'LEAD_DEBIT',
+              note: 'Lead sent',
+            },
+          }),
+        ])
+      } else {
+        await prisma.$transaction([
+          prisma.lead.create({
+            data: {
+              serviceRequestId,
+              providerId: provider.id,
+              status: LeadStatus.SENT,
+              charged: true,
+              price: LEAD_PRICE,
+            },
+          }),
+          prisma.serviceProvider.update({
+            where: { id: provider.id },
+            data: {
+              stripeAccountBalanceCents: { decrement: LEAD_PRICE_CENTS },
+              leadsReceived: { increment: 1 },
+              totalLeadsCharged: { increment: 1 },
+            },
+          }),
+          prisma.leadCreditTransaction.create({
+            data: {
+              providerId: provider.id,
+              amount: -1,
+              type: 'LEAD_DEBIT',
+              note: 'Lead sent using prepaid balance',
+            },
+          }),
+        ])
+      }
 
       console.log('[leads] Lead created', {
         serviceRequestId,
         providerId: provider.id,
         status: LeadStatus.SENT,
         charged,
-        price: charged ? LEAD_PRICE : 0,
       })
     })
   )
@@ -182,6 +270,11 @@ export async function getProviderLeadStats() {
       leadsReceived: true,
       freeLeadsRemaining: true,
       totalLeadsCharged: true,
+      leadCredits: true,
+      freeLeadCreditsIssued: true,
+      stripeAccountBalanceCents: true,
+      billingStatus: true,
+      claimStatus: true,
     },
     orderBy: { leadsReceived: 'desc' },
   })

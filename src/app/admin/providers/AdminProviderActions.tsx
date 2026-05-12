@@ -9,9 +9,10 @@ interface Props {
   isSuspended: boolean
   isDeleted: boolean
   isPending: boolean
+  hasPendingClaim?: boolean
 }
 
-export default function AdminProviderActions({ providerId, isActive, isSuspended, isDeleted, isPending }: Props) {
+export default function AdminProviderActions({ providerId, isActive, isSuspended, isDeleted, isPending, hasPendingClaim }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [showSuspendModal, setShowSuspendModal] = useState(false)
@@ -31,6 +32,28 @@ export default function AdminProviderActions({ providerId, isActive, isSuspended
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         setActionError(data.error ?? 'Failed to approve provider')
+        return
+      }
+      router.refresh()
+    } catch {
+      setActionError('Network error. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleApproveClaim() {
+    setLoading(true)
+    setActionError('')
+    try {
+      const res = await fetch(`/api/admin/providers/${providerId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'approve-claim' }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setActionError(data.error ?? 'Failed to approve claim')
         return
       }
       router.refresh()
@@ -109,7 +132,7 @@ export default function AdminProviderActions({ providerId, isActive, isSuspended
 
   return (
     <>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <a
           href={`/admin/providers/${providerId}/edit`}
           className="text-xs px-2.5 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 transition-colors"
@@ -130,13 +153,25 @@ export default function AdminProviderActions({ providerId, isActive, isSuspended
             Restore
           </button>
         ) : isActive ? (
-          <button
-            onClick={() => setShowSuspendModal(true)}
-            disabled={loading}
-            className="text-xs px-2.5 py-1 rounded bg-yellow-900/60 hover:bg-yellow-800 text-yellow-300 transition-colors disabled:opacity-50"
-          >
-            Suspend
-          </button>
+          <>
+            {hasPendingClaim && (
+              <button
+                onClick={handleApproveClaim}
+                disabled={loading}
+                className="text-xs px-2.5 py-1 rounded bg-blue-900/60 hover:bg-blue-800 text-blue-300 transition-colors disabled:opacity-50"
+                title="Approve claim & issue free credits"
+              >
+                Approve Claim
+              </button>
+            )}
+            <button
+              onClick={() => setShowSuspendModal(true)}
+              disabled={loading}
+              className="text-xs px-2.5 py-1 rounded bg-yellow-900/60 hover:bg-yellow-800 text-yellow-300 transition-colors disabled:opacity-50"
+            >
+              Suspend
+            </button>
+          </>
         ) : isSuspended ? (
           <button
             onClick={handleReactivate}

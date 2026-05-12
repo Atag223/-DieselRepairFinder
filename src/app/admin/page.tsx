@@ -288,7 +288,8 @@ export default async function AdminPage() {
                         <th className="px-4 py-3 font-medium">Tier</th>
                         <th className="px-4 py-3 font-medium">Verification</th>
                         <th className="px-4 py-3 font-medium">Leads</th>
-                        <th className="px-4 py-3 font-medium">Free Left</th>
+                        <th className="px-4 py-3 font-medium">Credits</th>
+                        <th className="px-4 py-3 font-medium">Free Issued</th>
                         <th className="px-4 py-3 font-medium">Paid</th>
                         <th className="px-4 py-3 font-medium">Revenue</th>
                       </tr>
@@ -329,9 +330,14 @@ export default async function AdminPage() {
                           <td className="px-4 py-3 text-gray-200">{p.leadsReceived}</td>
                           <td className="px-4 py-3">
                             <span
-                              className={p.freeLeadsRemaining > 0 ? 'text-green-400' : 'text-red-400'}
+                              className={p.leadCredits > 0 ? 'text-green-400' : 'text-gray-500'}
                             >
-                              {p.freeLeadsRemaining}
+                              {p.leadCredits}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={p.freeLeadCreditsIssued ? 'text-green-400' : 'text-gray-500'}>
+                              {p.freeLeadCreditsIssued ? 'Yes' : 'No'}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-gray-200">{p.totalLeadsCharged}</td>

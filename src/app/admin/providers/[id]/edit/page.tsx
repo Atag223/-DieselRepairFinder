@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import EditProviderForm from './EditProviderForm'
+import AdminCreditManager from './AdminCreditManager'
 import Link from 'next/link'
 
 type Props = { params: Promise<{ id: string }> }
@@ -10,7 +11,22 @@ export const dynamic = 'force-dynamic'
 export default async function EditProviderPage({ params }: Props) {
   const { id } = await params
 
-  const provider = await prisma.serviceProvider.findUnique({ where: { id } })
+  const provider = await prisma.serviceProvider.findUnique({
+    where: { id },
+    include: {
+      creditTransactions: {
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        select: {
+          id: true,
+          createdAt: true,
+          amount: true,
+          type: true,
+          note: true,
+        },
+      },
+    },
+  })
   if (!provider) notFound()
 
   return (
@@ -36,10 +52,26 @@ export default async function EditProviderPage({ params }: Props) {
         </div>
       </nav>
 
-      <main className="max-w-2xl mx-auto px-4 py-10">
-        <h1 className="text-2xl font-extrabold mb-2">Edit Provider</h1>
-        <p className="text-gray-400 text-sm mb-6">{provider.businessName}</p>
+      <main className="max-w-2xl mx-auto px-4 py-10 space-y-8">
+        <div>
+          <h1 className="text-2xl font-extrabold mb-2">Edit Provider</h1>
+          <p className="text-gray-400 text-sm">{provider.businessName}</p>
+        </div>
+
         <EditProviderForm provider={provider} />
+
+        <AdminCreditManager
+          providerId={provider.id}
+          leadCredits={provider.leadCredits}
+          stripeAccountBalanceCents={provider.stripeAccountBalanceCents}
+          freeLeadCreditsIssued={provider.freeLeadCreditsIssued}
+          lastCreditGrantAt={provider.lastCreditGrantAt?.toISOString() ?? null}
+          transactions={provider.creditTransactions.map((t) => ({
+            ...t,
+            createdAt: t.createdAt.toISOString(),
+            type: t.type as string,
+          }))}
+        />
       </main>
     </div>
   )
