@@ -22,18 +22,18 @@ export async function POST(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Provider not found' }, { status: 404 })
   }
 
-  let credits: number
+  let packageKey: string
   try {
     const body = await request.json()
-    credits = Number(body.credits)
+    packageKey = String(body.packageKey ?? '')
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const pkg = BILLING_PACKAGES.find((p) => p.credits === credits)
+  const pkg = BILLING_PACKAGES.find((p) => p.key === packageKey)
   if (!pkg) {
     return NextResponse.json(
-      { error: `Invalid credit package. Choose 5, 10, or 20 credits.` },
+      { error: `Invalid package. Choose starter, growth, or pro.` },
       { status: 400 }
     )
   }
@@ -56,7 +56,10 @@ export async function POST(request: NextRequest, { params }: Params) {
     })
   }
 
-  const pricePerLead = pkg.amountCents / 100 / pkg.credits
+  const bonusDesc =
+    pkg.bonusCredits > 0
+      ? ` + ${pkg.bonusCredits} bonus credit${pkg.bonusCredits > 1 ? 's' : ''}`
+      : ''
 
   const session = await stripe.checkout.sessions.create({
     customer: stripeCustomerId,
@@ -68,8 +71,8 @@ export async function POST(request: NextRequest, { params }: Params) {
           currency: 'usd',
           unit_amount: pkg.amountCents,
           product_data: {
-            name: `DieselRepairFinder Lead Credits – ${pkg.credits} leads`,
-            description: `${pkg.credits} qualified lead credits at $${pricePerLead} each`,
+            name: `DieselRepairFinder – ${pkg.name} (${pkg.awardedCredits} lead credits)`,
+            description: `${pkg.paidCredits} paid leads${bonusDesc}. Credits used only when you accept a qualified lead.`,
           },
         },
         quantity: 1,
@@ -77,7 +80,10 @@ export async function POST(request: NextRequest, { params }: Params) {
     ],
     metadata: {
       providerId: provider.id,
-      credits: String(pkg.credits),
+      packageKey: pkg.key,
+      paidCredits: String(pkg.paidCredits),
+      awardedCredits: String(pkg.awardedCredits),
+      bonusCredits: String(pkg.bonusCredits),
       amountCents: String(pkg.amountCents),
     },
     success_url: `${appUrl}/providers/${provider.id}/billing?success=1`,

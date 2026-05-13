@@ -73,30 +73,33 @@ export default function PricingPage() {
         <div className="bg-gray-950 border border-gray-800 rounded-2xl p-8 mb-14">
           <h2 className="text-xl font-bold mb-1">Buy Lead Credits in Bulk</h2>
           <p className="text-gray-400 text-sm mb-6">
-            Fund your account whenever you need. Credits never expire.
+            Bulk packages include bonus lead credits. Credits never expire.
           </p>
           <div className="grid sm:grid-cols-3 gap-4">
-          {BILLING_PACKAGES.map((pkg, idx) => {
-            const popular = idx === 1
+          {BILLING_PACKAGES.map((pkg) => {
             return (
               <div
-                key={pkg.credits}
-                className={`relative border rounded-xl p-5 text-center ${
-                  popular
-                    ? 'border-blue-500 bg-blue-950/30'
-                    : 'border-gray-700 bg-gray-900'
-                }`}
+                key={pkg.key}
+                className="relative border border-gray-700 bg-gray-900 rounded-xl p-5 text-center"
               >
-                {popular && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-bold px-3 py-0.5 rounded-full">
-                    Most Popular
+                {pkg.bonusLabel && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-600 text-white text-xs font-bold px-3 py-0.5 rounded-full whitespace-nowrap">
+                    {pkg.bonusLabel}
                   </span>
                 )}
-                <div className="text-3xl font-extrabold text-white mb-1">{pkg.credits}</div>
-                <div className="text-gray-400 text-sm mb-2">leads</div>
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                  {pkg.name}
+                </div>
+                <div className="text-3xl font-extrabold text-white mb-0.5">{pkg.awardedCredits}</div>
+                <div className="text-gray-400 text-xs mb-2">
+                  lead credits
+                  {pkg.bonusCredits > 0 && (
+                    <span className="text-green-400 ml-1">({pkg.paidCredits} + {pkg.bonusCredits} bonus)</span>
+                  )}
+                </div>
                 <div className="text-2xl font-bold text-blue-400">${pkg.amountCents / 100}</div>
                 <div className="text-gray-500 text-xs">
-                  ${pkg.amountCents / 100 / pkg.credits} per lead
+                  ${pkg.amountCents / 100 / pkg.paidCredits} per lead
                 </div>
               </div>
             )
