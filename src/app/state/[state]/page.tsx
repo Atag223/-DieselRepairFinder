@@ -58,16 +58,26 @@ export default async function StatePage({ params }: Props) {
   if (!stateName) notFound()
 
   const rows = await prisma.serviceProvider.findMany({
-    where: { active: true, deletedAt: null, state },
+    where: {
+      active: true,
+      deletedAt: null,
+      OR: [
+        { state },
+        { locations: { some: { state, active: true } } },
+      ],
+    },
     select: {
       id: true, businessName: true, phone: true, website: true, city: true, state: true,
       services: true, providerCategory: true, tier: true, verificationStatus: true,
       isVerified: true, rating: true, reviewCount: true, claimStatus: true, is24_7: true,
+      _count: { select: { locations: { where: { active: true } } } },
     },
     take: 300,
   })
 
-  const providers = sortProviders(rows as ProviderCardData[])
+  const providers = sortProviders(
+    rows.map((r) => ({ ...r, locationCount: r._count.locations })) as ProviderCardData[]
+  )
 
   // Group by city for SEO section
   const cities = [...new Set(providers.map((p) => p.city))].sort()

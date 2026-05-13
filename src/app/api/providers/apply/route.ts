@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
       services,
       notes,
       providerCategory,
+      additionalLocations,
     } = body
 
     // Validate required fields
@@ -78,6 +79,46 @@ export async function POST(request: NextRequest) {
       city: provider.city,
       state: provider.state,
     })
+
+    // Create primary ProviderLocation from the main city/state/serviceRadius
+    const locationCreates = [
+      prisma.providerLocation.create({
+        data: {
+          providerId: provider.id,
+          city: provider.city,
+          state: provider.state,
+          serviceRadius: provider.serviceRadius ?? 50,
+          phone: provider.phone ?? null,
+          contactName: provider.contactName ?? null,
+          isPrimary: true,
+          active: true,
+        },
+      }),
+    ]
+
+    // Additional locations (max 3, matching the join form UI limit)
+    const extraLocations: Array<{ city?: string; state?: string; serviceRadius?: number; phone?: string }> =
+      Array.isArray(additionalLocations) ? additionalLocations.slice(0, 3) : []
+
+    for (const loc of extraLocations) {
+      if (loc.city && loc.state) {
+        locationCreates.push(
+          prisma.providerLocation.create({
+            data: {
+              providerId: provider.id,
+              city: loc.city,
+              state: loc.state,
+              serviceRadius: loc.serviceRadius ? Number(loc.serviceRadius) : 50,
+              phone: loc.phone || null,
+              isPrimary: false,
+              active: true,
+            },
+          })
+        )
+      }
+    }
+
+    await Promise.all(locationCreates)
 
     return NextResponse.json(
       {

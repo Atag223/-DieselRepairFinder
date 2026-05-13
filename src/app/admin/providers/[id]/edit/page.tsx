@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import EditProviderForm from './EditProviderForm'
 import AdminCreditManager from './AdminCreditManager'
+import AdminLocationManager from './AdminLocationManager'
 import Link from 'next/link'
 
 type Props = { params: Promise<{ id: string }> }
@@ -24,6 +25,9 @@ export default async function EditProviderPage({ params }: Props) {
           type: true,
           note: true,
         },
+      },
+      locations: {
+        orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
       },
     },
   })
@@ -70,6 +74,26 @@ export default async function EditProviderPage({ params }: Props) {
             ...t,
             createdAt: t.createdAt.toISOString(),
             type: t.type as string,
+          }))}
+        />
+
+        <AdminLocationManager
+          providerId={provider.id}
+          initialLocations={provider.locations.map((l) => ({
+            id: l.id,
+            locationName: l.locationName,
+            city: l.city,
+            state: l.state,
+            zip: l.zip,
+            address: l.address,
+            serviceRadius: l.serviceRadius,
+            phone: l.phone,
+            contactName: l.contactName,
+            notes: l.notes,
+            isPrimary: l.isPrimary,
+            active: l.active,
+            latitude: l.latitude,
+            longitude: l.longitude,
           }))}
         />
       </main>

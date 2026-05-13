@@ -47,6 +47,20 @@ interface FormData {
   providerCategory: string
 }
 
+interface AdditionalLocation {
+  city: string
+  state: string
+  serviceRadius: string
+  phone: string
+}
+
+const emptyAdditionalLocation = (): AdditionalLocation => ({
+  city: '',
+  state: '',
+  serviceRadius: '',
+  phone: '',
+})
+
 export default function JoinPage() {
   const [form, setForm] = useState<FormData>({
     businessName: '',
@@ -63,6 +77,7 @@ export default function JoinPage() {
     providerCategory: 'DIESEL_MECHANIC',
   })
 
+  const [additionalLocations, setAdditionalLocations] = useState<AdditionalLocation[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<{ success: boolean; error?: string } | null>(null)
 
@@ -94,7 +109,10 @@ export default function JoinPage() {
       const res = await fetch('/api/providers/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          additionalLocations: additionalLocations.filter((l) => l.city && l.state),
+        }),
       })
       const data = await res.json()
       if (res.ok) {
@@ -416,6 +434,129 @@ export default function JoinPage() {
                   placeholder="Tell us more about your experience, certifications, or equipment..."
                   className="w-full bg-black border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors resize-none"
                 />
+              </div>
+
+              {/* Additional Locations */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-300">
+                      Additional Offices / Service Locations{' '}
+                      <span className="text-gray-500 font-normal">(Optional)</span>
+                    </h3>
+                    <p className="text-gray-500 text-xs mt-0.5">
+                      Add up to 3 additional service locations.
+                    </p>
+                  </div>
+                  {additionalLocations.length < 3 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAdditionalLocations((prev) => [...prev, emptyAdditionalLocation()])
+                      }
+                      className="text-xs text-blue-400 hover:text-blue-300 border border-blue-800/60 hover:border-blue-500/60 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      + Add Location
+                    </button>
+                  )}
+                </div>
+
+                {additionalLocations.map((loc, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-black border border-gray-800 rounded-xl p-4 space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500 font-semibold uppercase tracking-wide">
+                        Location {idx + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAdditionalLocations((prev) => prev.filter((_, i) => i !== idx))
+                        }
+                        className="text-xs text-gray-600 hover:text-red-400 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">City</label>
+                        <input
+                          type="text"
+                          value={loc.city}
+                          onChange={(e) =>
+                            setAdditionalLocations((prev) =>
+                              prev.map((l, i) =>
+                                i === idx ? { ...l, city: e.target.value } : l
+                              )
+                            )
+                          }
+                          placeholder="Houston"
+                          className="w-full bg-gray-950 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">State</label>
+                        <select
+                          value={loc.state}
+                          onChange={(e) =>
+                            setAdditionalLocations((prev) =>
+                              prev.map((l, i) =>
+                                i === idx ? { ...l, state: e.target.value } : l
+                              )
+                            )
+                          }
+                          className="w-full bg-gray-950 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                        >
+                          <option value="">Select state</option>
+                          {US_STATES.map((s) => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">
+                          Service Radius (miles)
+                        </label>
+                        <input
+                          type="number"
+                          value={loc.serviceRadius}
+                          onChange={(e) =>
+                            setAdditionalLocations((prev) =>
+                              prev.map((l, i) =>
+                                i === idx ? { ...l, serviceRadius: e.target.value } : l
+                              )
+                            )
+                          }
+                          min="1"
+                          max="500"
+                          placeholder="50"
+                          className="w-full bg-gray-950 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Phone (optional)</label>
+                        <input
+                          type="tel"
+                          value={loc.phone}
+                          onChange={(e) =>
+                            setAdditionalLocations((prev) =>
+                              prev.map((l, i) =>
+                                i === idx ? { ...l, phone: e.target.value } : l
+                              )
+                            )
+                          }
+                          placeholder="(555) 000-0000"
+                          className="w-full bg-gray-950 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <button

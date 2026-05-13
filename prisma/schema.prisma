@@ -86,6 +86,8 @@ model ServiceRequest {
   requesterCompany  String?
   city              String?
   state             String?
+  latitude          Float?
+  longitude         Float?
   breakdownNow      Boolean          @default(false)
   truckType         String?
   unitNumber        String?
@@ -165,6 +167,7 @@ model ServiceProvider {
   claimRequests       ProviderClaimRequest[]
   creditTransactions  LeadCreditTransaction[]
   payments            ProviderPayment[]
+  locations           ProviderLocation[]
 
   @@map("DieselMechanic")
 }
@@ -180,8 +183,14 @@ model Lead {
   charged          Boolean    @default(false)
   price            Float      @default(25)
 
+  providerLocationId  String?
+  distanceMiles       Float?
+  routingRank         Int?
+  routingRadiusUsed   Int?
+
   serviceRequest   ServiceRequest  @relation(fields: [serviceRequestId], references: [id])
   provider         ServiceProvider @relation(fields: [providerId], references: [id])
+  providerLocation ProviderLocation? @relation(fields: [providerLocationId], references: [id])
 
   @@map("DieselLead")
 }
@@ -227,4 +236,30 @@ model ProviderPayment {
   provider              ServiceProvider @relation(fields: [providerId], references: [id])
 
   @@map("ProviderPayment")
+}
+
+model ProviderLocation {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  providerId    String
+  locationName  String?
+  address       String?
+  city          String
+  state         String
+  zip           String?
+  latitude      Float?
+  longitude     Float?
+  serviceRadius Int      @default(50)
+  phone         String?
+  email         String?
+  contactName   String?
+  isPrimary     Boolean  @default(false)
+  active        Boolean  @default(true)
+  notes         String?
+
+  provider      ServiceProvider @relation(fields: [providerId], references: [id])
+  leads         Lead[]
+
+  @@map("ProviderLocation")
 }

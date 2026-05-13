@@ -17,6 +17,7 @@ export interface ProviderCardData {
   reviewCount: number
   claimStatus: ClaimStatus
   is24_7: boolean
+  locationCount?: number
 }
 
 const CATEGORY_LABELS: Record<ProviderCategory, { label: string; icon: string }> = {
@@ -121,6 +122,12 @@ export default function ProviderCard({ provider }: { provider: ProviderCardData 
           <span className="flex items-center gap-1 text-green-400">
             <span>🕐</span>
             <span>24/7</span>
+          </span>
+        )}
+        {provider.locationCount != null && provider.locationCount > 1 && (
+          <span className="flex items-center gap-1 text-blue-400">
+            <span>📍</span>
+            <span>Multiple locations</span>
           </span>
         )}
       </div>
