@@ -96,9 +96,16 @@ export async function POST(request: NextRequest) {
       }),
     ]
 
-    // Additional locations (max 3, matching the join form UI limit)
-    const extraLocations: Array<{ city?: string; state?: string; serviceRadius?: number; phone?: string }> =
-      Array.isArray(additionalLocations) ? additionalLocations.slice(0, 3) : []
+    // Additional locations: validate and cap at 3
+    const rawAdditionalLocations: Array<{ city?: string; state?: string; serviceRadius?: number; phone?: string }> =
+      Array.isArray(additionalLocations) ? additionalLocations : []
+    if (rawAdditionalLocations.length > 3) {
+      return NextResponse.json(
+        { error: 'A maximum of 3 additional locations are allowed.' },
+        { status: 400 }
+      )
+    }
+    const extraLocations = rawAdditionalLocations
 
     for (const loc of extraLocations) {
       if (loc.city && loc.state) {

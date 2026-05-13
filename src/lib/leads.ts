@@ -23,10 +23,10 @@ export interface SelectedProvider {
   tier: ProviderTier
   leadCredits: number
   stripeAccountBalanceCents: number
-  _locationId?: string
-  _distanceMiles?: number
-  _routingRank?: number
-  _radiusUsed?: number
+  routingLocationId?: string
+  routingDistanceMiles?: number
+  routingRank?: number
+  routingRadiusUsed?: number
   // Allow any additional ServiceProvider fields
   [key: string]: unknown
 }
@@ -138,24 +138,24 @@ export async function selectProviders(params: {
     type Candidate = {
       provider: typeof eligible[0]
       location: ProviderLocation | null
-      distanceMiles: number
+      distanceMiles: number | null
     }
 
     const withDistance: Candidate[] = eligible.map((provider) => {
       let closest: ProviderLocation | null = null
-      let minDist = Infinity
+      let minDist: number | null = null
 
       for (const loc of provider.locations) {
         if (loc.latitude != null && loc.longitude != null) {
           const d = calculateDistanceMiles(custLat, custLng, loc.latitude, loc.longitude)
-          if (d < minDist) {
+          if (minDist === null || d < minDist) {
             minDist = d
             closest = loc
           }
         }
       }
 
-      // Fallback: if provider itself has coords
+      // Fallback: if provider itself has coords but no location record has coords
       if (closest === null && provider.latitude != null && provider.longitude != null) {
         minDist = calculateDistanceMiles(custLat, custLng, provider.latitude, provider.longitude)
       }
@@ -172,7 +172,8 @@ export async function selectProviders(params: {
     let radiusUsed: number | undefined
 
     for (const radius of RADIUS_STEPS) {
-      const inRadius = withDistance.filter((c) => c.distanceMiles <= radius)
+      // Only include providers with known distance within the radius
+      const inRadius = withDistance.filter((c) => c.distanceMiles !== null && c.distanceMiles <= radius)
       if (inRadius.length >= MAX_PROVIDERS_PER_REQUEST) {
         selected = inRadius
         radiusUsed = radius
@@ -180,7 +181,7 @@ export async function selectProviders(params: {
       }
     }
 
-    // Statewide fallback (filter by state if provided)
+    // Statewide fallback (filter by state if provided, include providers without coords too)
     if (selected.length < MAX_PROVIDERS_PER_REQUEST) {
       const statewide = params.state
         ? withDistance.filter(
@@ -195,10 +196,13 @@ export async function selectProviders(params: {
       }
     }
 
-    // Sort by distance asc, then tier as tiebreaker
+    // Sort: providers with known distance first (closest), then unknown; tier as tiebreaker
     selected.sort((a, b) => {
-      if (a.distanceMiles !== b.distanceMiles)
-        return a.distanceMiles - b.distanceMiles
+      const aHasDist = a.distanceMiles !== null
+      const bHasDist = b.distanceMiles !== null
+      if (aHasDist !== bHasDist) return aHasDist ? -1 : 1
+      if (aHasDist && bHasDist && a.distanceMiles !== b.distanceMiles)
+        return (a.distanceMiles as number) - (b.distanceMiles as number)
       return tierOrder.indexOf(a.provider.tier) - tierOrder.indexOf(b.provider.tier)
     })
 
@@ -216,10 +220,10 @@ export async function selectProviders(params: {
 
     const result: SelectedProvider[] = final.map((c, i) => ({
       ...c.provider,
-      _locationId: c.location?.id,
-      _distanceMiles: c.distanceMiles === Infinity ? undefined : c.distanceMiles,
-      _routingRank: i + 1,
-      _radiusUsed: radiusUsed,
+      routingLocationId: c.location?.id,
+      routingDistanceMiles: c.distanceMiles ?? undefined,
+      routingRank: i + 1,
+      routingRadiusUsed: radiusUsed,
     }))
 
     console.log('[leads] Providers selected (geo)', {
@@ -229,8 +233,8 @@ export async function selectProviders(params: {
         providerId: p.id,
         name: p.businessName,
         tier: p.tier,
-        distanceMiles: p._distanceMiles?.toFixed(1),
-        radiusUsed: p._radiusUsed,
+        distanceMiles: p.routingDistanceMiles?.toFixed(1),
+        radiusUsed: p.routingRadiusUsed,
       })),
     })
 
@@ -268,8 +272,8 @@ export async function selectProviders(params: {
       : null
     return {
       ...p,
-      _locationId: stateLocation?.id,
-      _routingRank: i + 1,
+      routingLocationId: stateLocation?.id,
+      routingRank: i + 1,
     }
   })
 
@@ -344,8 +348,8 @@ export async function createLeadsForRequest(
         providerId: provider.id,
         useCredit,
         useBalance,
-        locationId: selected._locationId,
-        distanceMiles: selected._distanceMiles,
+        locationId: selected.routingLocationId,
+        distanceMiles: selected.routingDistanceMiles,
       })
 
       const leadData = {
@@ -354,10 +358,10 @@ export async function createLeadsForRequest(
         status: LeadStatus.SENT,
         charged: false,
         price: 0 as number,
-        providerLocationId: selected._locationId ?? null,
-        distanceMiles: selected._distanceMiles ?? null,
-        routingRank: selected._routingRank ?? null,
-        routingRadiusUsed: selected._radiusUsed ?? null,
+        providerLocationId: selected.routingLocationId ?? null,
+        distanceMiles: selected.routingDistanceMiles ?? null,
+        routingRank: selected.routingRank ?? null,
+        routingRadiusUsed: selected.routingRadiusUsed ?? null,
       }
 
       if (useCredit) {
