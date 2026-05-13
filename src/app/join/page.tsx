@@ -445,7 +445,7 @@ export default function JoinPage() {
                       <span className="text-gray-500 font-normal">(Optional)</span>
                     </h3>
                     <p className="text-gray-500 text-xs mt-0.5">
-                      Add up to 3 additional service locations.
+                      Add up to 3 additional locations beyond your primary office (4 total).
                     </p>
                   </div>
                   {additionalLocations.length < 3 && (

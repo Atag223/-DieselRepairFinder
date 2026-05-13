@@ -23,9 +23,13 @@ export interface SelectedProvider {
   tier: ProviderTier
   leadCredits: number
   stripeAccountBalanceCents: number
+  /** The `ProviderLocation.id` of the location chosen for routing (closest to customer). */
   routingLocationId?: string
+  /** Great-circle distance in miles from the customer to the matched provider location. `undefined` when no coordinates were available. */
   routingDistanceMiles?: number
+  /** 1-based rank of this provider in the routing result set (1 = closest/highest priority). */
   routingRank?: number
+  /** The radius step (miles) in which this provider was found during expansion (25, 50, or 100). `undefined` for statewide fallback. */
   routingRadiusUsed?: number
   // Allow any additional ServiceProvider fields
   [key: string]: unknown
