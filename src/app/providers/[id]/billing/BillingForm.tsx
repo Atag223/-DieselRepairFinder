@@ -76,8 +76,8 @@ export default function BillingForm({
       <div className="bg-blue-950/40 border border-blue-800/50 rounded-xl p-5 text-sm text-blue-300">
         <p className="font-semibold mb-1">How it works</p>
         <p>
-          Your first 3 leads are free after approval. After that, each qualified lead costs $25.
-          Credits never expire. No monthly fees.
+          Your first 3 accepted leads are free after approval. After that, each accepted lead
+          costs $25. Credits never expire. No monthly fees.
         </p>
       </div>
 

@@ -12,11 +12,11 @@ export default function PricingPage() {
         <div className="text-center mb-14">
           <h1 className="text-4xl sm:text-5xl font-extrabold mb-4">
             Free to list.{' '}
-            <span className="text-blue-400">Pay only for qualified leads.</span>
+            <span className="text-blue-400">Pay only for accepted leads.</span>
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-            No monthly fees. No hidden costs. Get listed on DieselRepairFinder today and only
-            pay when a real customer reaches out.
+            No monthly fees. No signup fee. Get listed on DieselRepairFinder today and only pay
+            when you accept a qualified job request.
           </p>
         </div>
 
@@ -38,10 +38,10 @@ export default function PricingPage() {
               After Approval
             </div>
             <div className="text-3xl mb-3">🎁</div>
-            <h2 className="text-lg font-bold mb-2">3 Free Lead Credits</h2>
+            <h2 className="text-lg font-bold mb-2">3 Free Accepted Leads</h2>
             <p className="text-gray-400 text-sm flex-1">
-              Every approved provider receives 3 free lead credits once — after your listing is
-              approved or your claim is verified.
+              Every approved provider receives 3 free accepted lead credits once — after your
+              listing is approved or your claim is verified.
             </p>
             <div className="mt-4 text-2xl font-extrabold text-blue-400">$0</div>
             <div className="text-gray-500 text-xs">One time, after approval</div>
@@ -49,14 +49,24 @@ export default function PricingPage() {
 
           <div className="bg-gray-950 border border-gray-800 rounded-2xl p-7 flex flex-col">
             <div className="text-3xl mb-3">⚡</div>
-            <h2 className="text-lg font-bold mb-2">$25 Per Qualified Lead</h2>
+            <h2 className="text-lg font-bold mb-2">$25 Per Accepted Lead</h2>
             <p className="text-gray-400 text-sm flex-1">
-              After your free credits, each qualified lead costs $25. You only pay when a real
-              customer request is routed to you.
+              After your free credits, each accepted lead costs $25. You are only charged when
+              you accept a qualified job request.
             </p>
             <div className="mt-4 text-2xl font-extrabold text-white">$25</div>
-            <div className="text-gray-500 text-xs">Per qualified lead</div>
+            <div className="text-gray-500 text-xs">Per accepted qualified lead</div>
           </div>
+        </div>
+
+        {/* What qualifies */}
+        <div className="bg-gray-950 border border-gray-800 rounded-2xl p-8 mb-14">
+          <h2 className="text-lg font-bold mb-3">What counts as a qualified lead?</h2>
+          <p className="text-gray-400 text-sm leading-relaxed">
+            A qualified lead includes the customer&apos;s contact details, service location,
+            requested service category, urgency level, and job details. You are only charged when
+            you accept the lead.
+          </p>
         </div>
 
         {/* Buy credits packages */}
@@ -104,18 +114,18 @@ export default function PricingPage() {
             },
             {
               icon: '🎁',
-              title: 'First 3 leads free after approval',
+              title: 'First 3 accepted leads free after approval',
               desc: 'Every new approved provider gets a head start.',
             },
             {
               icon: '💳',
-              title: '$25 per qualified lead after free credits',
-              desc: 'Only pay for real customer requests routed to you.',
+              title: '$25 per accepted lead after free credits',
+              desc: 'Pay only when you accept a qualified job request.',
             },
             {
               icon: '🚫',
-              title: 'No monthly fee required',
-              desc: 'There is no subscription. You pay as you grow.',
+              title: 'No monthly subscription required',
+              desc: 'No monthly fee. No signup fee. You pay as you grow.',
             },
             {
               icon: '💰',
@@ -136,6 +146,78 @@ export default function PricingPage() {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Optional Placement Upgrades */}
+        <div className="mb-14">
+          <h2 className="text-xl font-bold mb-1">Optional Placement Upgrades</h2>
+          <p className="text-gray-400 text-sm mb-6">
+            These are optional annual advertising upgrades — not required subscriptions. Your
+            listing and lead credits work the same regardless.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-6">
+            <div className="bg-blue-950/20 border border-blue-800/50 rounded-2xl p-7 flex flex-col">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="inline-block bg-blue-600/30 text-blue-300 text-xs font-bold px-2.5 py-0.5 rounded-full">
+                  Featured
+                </span>
+                <span className="text-gray-500 text-xs">State Placement</span>
+              </div>
+              <h3 className="text-lg font-bold mb-2">Featured State Placement</h3>
+              <ul className="space-y-1.5 text-sm text-gray-400 flex-1 mb-4">
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-400 mt-0.5">·</span>
+                  Higher placement in selected state pages
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-400 mt-0.5">·</span>
+                  Featured badge on your listing
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-400 mt-0.5">·</span>
+                  Priority visibility above standard free listings
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-gray-600 mt-0.5">·</span>
+                  <span className="text-gray-500">
+                    Does not include additional free leads beyond standard 3-credit offer
+                  </span>
+                </li>
+              </ul>
+              <div className="text-2xl font-extrabold text-blue-400">$1,250<span className="text-base font-medium text-gray-500">/year</span></div>
+            </div>
+
+            <div className="bg-yellow-950/20 border border-yellow-700/50 rounded-2xl p-7 flex flex-col">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="inline-block bg-yellow-500/20 text-yellow-300 text-xs font-bold px-2.5 py-0.5 rounded-full">
+                  Premium
+                </span>
+                <span className="text-gray-500 text-xs">State Placement</span>
+              </div>
+              <h3 className="text-lg font-bold mb-2">Premium State Placement</h3>
+              <ul className="space-y-1.5 text-sm text-gray-400 flex-1 mb-4">
+                <li className="flex items-start gap-2">
+                  <span className="text-yellow-400 mt-0.5">·</span>
+                  Top provider placement in selected state pages where available
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-yellow-400 mt-0.5">·</span>
+                  Premium badge on your listing
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-yellow-400 mt-0.5">·</span>
+                  Highest visibility above Featured and standard listings
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-gray-600 mt-0.5">·</span>
+                  <span className="text-gray-500">
+                    Does not include additional free leads beyond standard 3-credit offer
+                  </span>
+                </li>
+              </ul>
+              <div className="text-2xl font-extrabold text-yellow-400">$1,500<span className="text-base font-medium text-gray-500">/year</span></div>
+            </div>
+          </div>
         </div>
 
         {/* CTA */}

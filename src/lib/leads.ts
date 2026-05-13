@@ -204,6 +204,8 @@ export async function createLeadsForRequest(
               leadsReceived: { increment: 1 },
             },
           }),
+          // TODO: Final billing should debit credits only when provider accepts the lead,
+          //       not when lead is sent. Update this once an ACCEPTED lead status flow is added.
           prisma.leadCreditTransaction.create({
             data: {
               providerId: provider.id,
@@ -232,6 +234,8 @@ export async function createLeadsForRequest(
               totalLeadsCharged: { increment: 1 },
             },
           }),
+          // TODO: Final billing should debit credits only when provider accepts the lead,
+          //       not when lead is sent. Update this once an ACCEPTED lead status flow is added.
           prisma.leadCreditTransaction.create({
             data: {
               providerId: provider.id,
