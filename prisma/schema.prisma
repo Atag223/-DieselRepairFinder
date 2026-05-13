@@ -94,6 +94,12 @@ model ServiceRequest {
   roadsideLocation  String?
   specialNotes      String?
 
+  // Payment method (required at request time)
+  paymentMethod     String           @default("Unknown")
+  paymentNotes      String?
+  poNumber          String?
+  nationalAccountName String?
+
   status            RequestStatus    @default(PENDING)
   referenceId       String           @unique @default(cuid())
   requestedCategory ProviderCategory @default(DIESEL_MECHANIC)

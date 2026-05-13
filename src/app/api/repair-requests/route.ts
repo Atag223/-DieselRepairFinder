@@ -26,6 +26,10 @@ export async function POST(request: NextRequest) {
       roadsideLocation,
       specialNotes,
       requestedCategory,
+      paymentMethod,
+      paymentNotes,
+      poNumber,
+      nationalAccountName,
     } = body
 
     // Validate required fields
@@ -35,7 +39,8 @@ export async function POST(request: NextRequest) {
       !requesterPhone ||
       !serviceAddress ||
       !issueType ||
-      !issueDetails
+      !issueDetails ||
+      !paymentMethod
     ) {
       return NextResponse.json(
         { error: 'Missing required fields' },
@@ -67,6 +72,10 @@ export async function POST(request: NextRequest) {
         roadsideLocation: roadsideLocation || null,
         specialNotes: specialNotes || null,
         requestedCategory: parseProviderCategory(requestedCategory),
+        paymentMethod: String(paymentMethod),
+        paymentNotes: paymentNotes || null,
+        poNumber: poNumber || null,
+        nationalAccountName: nationalAccountName || null,
       },
     })
 
