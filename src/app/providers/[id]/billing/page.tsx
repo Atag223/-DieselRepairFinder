@@ -53,7 +53,6 @@ export default async function ProviderBillingPage({ params, searchParams }: Prop
 
         <BillingForm
           providerId={provider.id}
-          businessName={provider.businessName}
           leadCredits={provider.leadCredits}
           stripeAccountBalanceCents={provider.stripeAccountBalanceCents}
           freeLeadCreditsIssued={provider.freeLeadCreditsIssued}

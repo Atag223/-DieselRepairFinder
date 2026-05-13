@@ -5,7 +5,6 @@ import { BILLING_PACKAGES, BillingPackage } from '@/lib/billing'
 
 interface Props {
   providerId: string
-  businessName: string
   leadCredits: number
   stripeAccountBalanceCents: number
   freeLeadCreditsIssued: boolean
