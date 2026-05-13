@@ -55,6 +55,14 @@ async function getProviders(filters: SearchParams) {
       phone: true,
       email: true,
       createdAt: true,
+      leadCredits: true,
+      freeLeadCreditsIssued: true,
+      billingStatus: true,
+      claimRequests: {
+        where: { status: 'NEW' },
+        select: { id: true },
+        take: 1,
+      },
     },
   })
 }
@@ -182,6 +190,8 @@ export default async function AdminProvidersPage({
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Verify</th>
                   <th className="px-4 py-3 font-medium">Claim</th>
+                  <th className="px-4 py-3 font-medium">Credits</th>
+                  <th className="px-4 py-3 font-medium">Free Issued</th>
                   <th className="px-4 py-3 font-medium">Added</th>
                   <th className="px-4 py-3 font-medium">Actions</th>
                 </tr>
@@ -274,6 +284,28 @@ export default async function AdminProvidersPage({
                           {p.claimStatus}
                         </span>
                       </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
+                            p.leadCredits > 0
+                              ? 'bg-green-500/20 text-green-400'
+                              : 'bg-gray-700 text-gray-500'
+                          }`}
+                        >
+                          {p.leadCredits}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
+                            p.freeLeadCreditsIssued
+                              ? 'bg-green-500/20 text-green-400'
+                              : 'bg-gray-700 text-gray-500'
+                          }`}
+                        >
+                          {p.freeLeadCreditsIssued ? 'Yes' : 'No'}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-gray-400 text-xs">
                         {p.createdAt.toLocaleDateString()}
                       </td>
@@ -284,6 +316,7 @@ export default async function AdminProvidersPage({
                           isSuspended={isSuspended}
                           isDeleted={isDeleted}
                           isPending={!p.active && !isSuspended && !isDeleted}
+                          hasPendingClaim={p.claimRequests.length > 0}
                         />
                       </td>
                     </tr>

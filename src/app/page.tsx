@@ -104,7 +104,21 @@ interface FormData {
   unitNumber: string
   roadsideLocation: string
   specialNotes: string
+  paymentMethod: string
+  paymentNotes: string
+  poNumber: string
+  nationalAccountName: string
 }
+
+const PAYMENT_METHODS = [
+  { value: 'Credit Card', label: 'Credit Card' },
+  { value: 'Fleet / National Account', label: 'Fleet / National Account' },
+  { value: 'Purchase Order', label: 'Purchase Order' },
+  { value: 'Cash', label: 'Cash' },
+  { value: 'Check', label: 'Check' },
+  { value: 'Insurance', label: 'Insurance' },
+  { value: 'Other', label: 'Other' },
+]
 
 export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState<ProviderCategory>('DIESEL_MECHANIC')
@@ -123,6 +137,10 @@ export default function HomePage() {
     unitNumber: '',
     roadsideLocation: '',
     specialNotes: '',
+    paymentMethod: '',
+    paymentNotes: '',
+    poNumber: '',
+    nationalAccountName: '',
   })
 
   const [submitting, setSubmitting] = useState(false)
@@ -145,6 +163,12 @@ export default function HomePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!form.paymentMethod) {
+      setResult({ success: false, error: 'Please select a payment method.' })
+      return
+    }
+
     setSubmitting(true)
     setResult(null)
 
@@ -172,6 +196,10 @@ export default function HomePage() {
           unitNumber: '',
           roadsideLocation: '',
           specialNotes: '',
+          paymentMethod: '',
+          paymentNotes: '',
+          poNumber: '',
+          nationalAccountName: '',
         })
       } else {
         setResult({ success: false, error: data.error || 'Something went wrong.' })
@@ -501,6 +529,85 @@ export default function HomePage() {
                   placeholder="Any other details the provider should know..."
                   className="w-full bg-black border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors resize-none"
                 />
+              </div>
+
+              {/* Payment Method Section */}
+              <div className="border border-gray-700 rounded-xl p-5 space-y-4 bg-gray-900/50">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-200 mb-1">
+                    How will you pay the service provider? <span className="text-red-400">*</span>
+                  </label>
+                  <p className="text-gray-500 text-xs mb-3">
+                    Payment is handled directly between you and the service provider. DieselRepairFinder uses this information to help providers decide whether to accept the request.
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {PAYMENT_METHODS.map((pm) => (
+                      <button
+                        key={pm.value}
+                        type="button"
+                        onClick={() => setForm((prev) => ({ ...prev, paymentMethod: pm.value, paymentNotes: '', poNumber: '', nationalAccountName: '' }))}
+                        className={`text-sm font-medium px-3 py-2.5 rounded-lg border transition-colors text-left ${
+                          form.paymentMethod === pm.value
+                            ? 'bg-blue-600 border-blue-500 text-white'
+                            : 'bg-black border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200'
+                        }`}
+                      >
+                        {pm.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Conditional: Fleet / National Account */}
+                {form.paymentMethod === 'Fleet / National Account' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                      National Account Name
+                    </label>
+                    <input
+                      type="text"
+                      name="nationalAccountName"
+                      value={form.nationalAccountName}
+                      onChange={handleChange}
+                      placeholder="e.g. Ryder, Penske, Werner, etc."
+                      className="w-full bg-black border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+                )}
+
+                {/* Conditional: Purchase Order */}
+                {form.paymentMethod === 'Purchase Order' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                      PO Number
+                    </label>
+                    <input
+                      type="text"
+                      name="poNumber"
+                      value={form.poNumber}
+                      onChange={handleChange}
+                      placeholder="e.g. PO-12345"
+                      className="w-full bg-black border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+                )}
+
+                {/* Conditional: Other */}
+                {form.paymentMethod === 'Other' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                      Payment Notes
+                    </label>
+                    <input
+                      type="text"
+                      name="paymentNotes"
+                      value={form.paymentNotes}
+                      onChange={handleChange}
+                      placeholder="Describe your payment arrangement..."
+                      className="w-full bg-black border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+                )}
               </div>
 
               <button

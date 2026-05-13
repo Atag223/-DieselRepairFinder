@@ -18,12 +18,18 @@ export async function POST(request: NextRequest) {
       requesterCompany,
       city,
       state,
+      latitude,
+      longitude,
       breakdownNow,
       truckType,
       unitNumber,
       roadsideLocation,
       specialNotes,
       requestedCategory,
+      paymentMethod,
+      paymentNotes,
+      poNumber,
+      nationalAccountName,
     } = body
 
     // Validate required fields
@@ -33,7 +39,8 @@ export async function POST(request: NextRequest) {
       !requesterPhone ||
       !serviceAddress ||
       !issueType ||
-      !issueDetails
+      !issueDetails ||
+      !paymentMethod
     ) {
       return NextResponse.json(
         { error: 'Missing required fields' },
@@ -57,12 +64,18 @@ export async function POST(request: NextRequest) {
         requesterCompany: requesterCompany || null,
         city: city || null,
         state: state || null,
+        latitude: latitude != null ? Number(latitude) : null,
+        longitude: longitude != null ? Number(longitude) : null,
         breakdownNow: Boolean(breakdownNow),
         truckType: truckType || null,
         unitNumber: unitNumber || null,
         roadsideLocation: roadsideLocation || null,
         specialNotes: specialNotes || null,
         requestedCategory: parseProviderCategory(requestedCategory),
+        paymentMethod: String(paymentMethod),
+        paymentNotes: paymentNotes || null,
+        poNumber: poNumber || null,
+        nationalAccountName: nationalAccountName || null,
       },
     })
 
@@ -86,10 +99,11 @@ export async function POST(request: NextRequest) {
         state: serviceRequest.state,
         category: serviceRequest.requestedCategory,
         serviceRequestId: serviceRequest.id,
+        latitude: serviceRequest.latitude,
+        longitude: serviceRequest.longitude,
       })
-      const providerIds = providers.map((p) => p.id)
-      if (providerIds.length > 0) {
-        await createLeadsForRequest(serviceRequest.id, providerIds)
+      if (providers.length > 0) {
+        await createLeadsForRequest(serviceRequest.id, providers)
       } else {
         console.log('[leads] No matching providers found', { serviceRequestId: serviceRequest.id })
       }

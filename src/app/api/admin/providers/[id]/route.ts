@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminRequest } from '@/lib/admin-auth'
 import { ProviderCategory, ProviderTier, VerificationStatus, ClaimStatus } from '@prisma/client'
+import { issueInitialFreeCredits } from '@/lib/leads'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -36,11 +37,48 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           active: true,
           verificationStatus: 'VERIFIED',
           claimStatus: 'CLAIMED',
+          approvedAt: new Date(),
           suspendedAt: null,
           suspendedReason: null,
           deletedAt: null,
         },
       })
+      // Issue 3 free lead credits if not already issued
+      await issueInitialFreeCredits(id)
+      return NextResponse.json({ success: true, provider: updated })
+    }
+
+    if (action === 'approve-claim') {
+      const claimRequest = await prisma.providerClaimRequest.findFirst({
+        where: { providerId: id, status: { not: 'APPROVED' } },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, email: true },
+      })
+
+      const updated = await prisma.serviceProvider.update({
+        where: { id },
+        data: {
+          active: true,
+          verificationStatus: 'VERIFIED',
+          claimStatus: 'CLAIMED',
+          claimedAt: new Date(),
+          claimedByEmail: claimRequest?.email ?? null,
+          approvedAt: new Date(),
+          suspendedAt: null,
+          suspendedReason: null,
+          deletedAt: null,
+        },
+      })
+
+      if (claimRequest) {
+        await prisma.providerClaimRequest.update({
+          where: { id: claimRequest.id },
+          data: { status: 'APPROVED' },
+        })
+      }
+
+      // Issue 3 free lead credits if not already issued
+      await issueInitialFreeCredits(id)
       return NextResponse.json({ success: true, provider: updated })
     }
 
@@ -54,6 +92,36 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           deletedAt: null,
         },
       })
+      return NextResponse.json({ success: true, provider: updated })
+    }
+
+    if (action === 'grant-credits') {
+      const amount = Number(fields.amount)
+      if (!amount || amount <= 0) {
+        return NextResponse.json({ error: 'Invalid credit amount' }, { status: 400 })
+      }
+
+      const note = fields.note?.trim() || null
+
+      await prisma.$transaction([
+        prisma.serviceProvider.update({
+          where: { id },
+          data: {
+            leadCredits: { increment: amount },
+            lastCreditGrantAt: new Date(),
+          },
+        }),
+        prisma.leadCreditTransaction.create({
+          data: {
+            providerId: id,
+            amount,
+            type: 'ADMIN_GRANT',
+            note: note ?? 'Admin credit grant',
+          },
+        }),
+      ])
+
+      const updated = await prisma.serviceProvider.findUnique({ where: { id } })
       return NextResponse.json({ success: true, provider: updated })
     }
 

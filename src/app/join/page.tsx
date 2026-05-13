@@ -47,6 +47,20 @@ interface FormData {
   providerCategory: string
 }
 
+interface AdditionalLocation {
+  city: string
+  state: string
+  serviceRadius: string
+  phone: string
+}
+
+const emptyAdditionalLocation = (): AdditionalLocation => ({
+  city: '',
+  state: '',
+  serviceRadius: '',
+  phone: '',
+})
+
 export default function JoinPage() {
   const [form, setForm] = useState<FormData>({
     businessName: '',
@@ -63,6 +77,7 @@ export default function JoinPage() {
     providerCategory: 'DIESEL_MECHANIC',
   })
 
+  const [additionalLocations, setAdditionalLocations] = useState<AdditionalLocation[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<{ success: boolean; error?: string } | null>(null)
 
@@ -94,7 +109,10 @@ export default function JoinPage() {
       const res = await fetch('/api/providers/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          additionalLocations: additionalLocations.filter((l) => l.city && l.state),
+        }),
       })
       const data = await res.json()
       if (res.ok) {
@@ -117,11 +135,11 @@ export default function JoinPage() {
       <section className="py-16 sm:py-24 px-4 bg-gradient-to-b from-blue-950/30 to-black text-center">
         <div className="max-w-3xl mx-auto">
           <h1 className="text-4xl sm:text-5xl font-extrabold mb-5">
-            Join the <span className="text-blue-500">Diesel Repair Finder</span> Network
+            Join <span className="text-blue-500">DieselRepairFinder</span> as a Provider
           </h1>
           <p className="text-gray-300 text-lg mb-6">
-            Connect with drivers who need your skills. Grow your mobile service business with
-            steady local leads — on your schedule.
+            Get listed for free and receive your first 3 accepted leads at no cost. After that,
+            pay only $25 when you accept a qualified job request.
           </p>
           <div className="grid sm:grid-cols-3 gap-4 max-w-xl mx-auto mb-8">
             {[
@@ -138,78 +156,44 @@ export default function JoinPage() {
 
           {/* Pay-per-lead callout */}
           <div className="bg-blue-950/40 border border-blue-800/60 rounded-2xl p-6 text-left max-w-xl mx-auto">
-            <h2 className="text-lg font-bold text-blue-300 mb-3">💡 How leads work</h2>
+            <h2 className="text-lg font-bold text-blue-300 mb-3">💡 How it works</h2>
             <ul className="space-y-2 text-sm text-gray-300">
               <li className="flex items-start gap-2">
                 <span className="text-green-400 mt-0.5">✓</span>
                 <span>
-                  <strong className="text-white">First 3 leads are free</strong> — get started
-                  with no upfront cost.
+                  <strong className="text-white">Free company listing</strong> — get listed in your
+                  service area at no charge.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-green-400 mt-0.5">✓</span>
+                <span>
+                  <strong className="text-white">First 3 accepted leads are free</strong> — get
+                  started with no upfront cost after approval.
                 </span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-yellow-400 mt-0.5">$</span>
                 <span>
-                  After your free leads, it&apos;s just{' '}
-                  <strong className="text-white">$25 per lead</strong> — only pay when you receive
-                  a new job request.
+                  After your free leads, just{' '}
+                  <strong className="text-white">$25 per accepted lead</strong> — pay only when
+                  you accept a qualified job request.
                 </span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-blue-400 mt-0.5">⭐</span>
+                <span className="text-blue-400 mt-0.5">✓</span>
                 <span>
-                  <strong className="text-white">Upgrade for more leads and priority placement</strong>{' '}
-                  — Featured ($99/mo) and Premium ($199/mo) plans put you at the top.
+                  <strong className="text-white">No monthly fee required.</strong> No subscription.
+                  You keep 100% of your labor rate.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-gray-400 mt-0.5">ℹ</span>
+                <span className="text-gray-400 text-xs">
+                  Admin approval required before your listing goes live.
                 </span>
               </li>
             </ul>
-          </div>
-
-          {/* Tier cards */}
-          <div className="grid sm:grid-cols-3 gap-4 max-w-2xl mx-auto mt-8">
-            {[
-              {
-                name: 'Free',
-                price: '$0',
-                color: 'border-gray-700',
-                badge: 'bg-gray-700 text-gray-300',
-                features: ['3 free leads', '$25/lead after that', 'Standard placement'],
-              },
-              {
-                name: 'Featured',
-                price: '$99/mo',
-                color: 'border-blue-600',
-                badge: 'bg-blue-600/30 text-blue-300',
-                features: ['More leads per month', '$25/lead after allowance', 'Priority placement'],
-              },
-              {
-                name: 'Premium',
-                price: '$199/mo',
-                color: 'border-yellow-500',
-                badge: 'bg-yellow-500/20 text-yellow-300',
-                features: ['Highest lead volume', 'Top placement in results', 'Dedicated support'],
-              },
-            ].map((tier) => (
-              <div
-                key={tier.name}
-                className={`bg-gray-950 border ${tier.color} rounded-xl p-5 text-left`}
-              >
-                <div
-                  className={`inline-block px-2 py-0.5 rounded text-xs font-semibold mb-3 ${tier.badge}`}
-                >
-                  {tier.name}
-                </div>
-                <div className="text-xl font-extrabold text-white mb-3">{tier.price}</div>
-                <ul className="space-y-1.5">
-                  {tier.features.map((f) => (
-                    <li key={f} className="flex items-start gap-1.5 text-xs text-gray-400">
-                      <span className="text-blue-400 mt-0.5">·</span>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
           </div>
         </div>
       </section>
@@ -452,12 +436,135 @@ export default function JoinPage() {
                 />
               </div>
 
+              {/* Additional Locations */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-300">
+                      Additional Offices / Service Locations{' '}
+                      <span className="text-gray-500 font-normal">(Optional)</span>
+                    </h3>
+                    <p className="text-gray-500 text-xs mt-0.5">
+                      Add up to 3 additional locations beyond your primary office (4 total).
+                    </p>
+                  </div>
+                  {additionalLocations.length < 3 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAdditionalLocations((prev) => [...prev, emptyAdditionalLocation()])
+                      }
+                      className="text-xs text-blue-400 hover:text-blue-300 border border-blue-800/60 hover:border-blue-500/60 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      + Add Location
+                    </button>
+                  )}
+                </div>
+
+                {additionalLocations.map((loc, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-black border border-gray-800 rounded-xl p-4 space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500 font-semibold uppercase tracking-wide">
+                        Location {idx + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAdditionalLocations((prev) => prev.filter((_, i) => i !== idx))
+                        }
+                        className="text-xs text-gray-600 hover:text-red-400 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">City</label>
+                        <input
+                          type="text"
+                          value={loc.city}
+                          onChange={(e) =>
+                            setAdditionalLocations((prev) =>
+                              prev.map((l, i) =>
+                                i === idx ? { ...l, city: e.target.value } : l
+                              )
+                            )
+                          }
+                          placeholder="Houston"
+                          className="w-full bg-gray-950 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">State</label>
+                        <select
+                          value={loc.state}
+                          onChange={(e) =>
+                            setAdditionalLocations((prev) =>
+                              prev.map((l, i) =>
+                                i === idx ? { ...l, state: e.target.value } : l
+                              )
+                            )
+                          }
+                          className="w-full bg-gray-950 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                        >
+                          <option value="">Select state</option>
+                          {US_STATES.map((s) => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">
+                          Service Radius (miles)
+                        </label>
+                        <input
+                          type="number"
+                          value={loc.serviceRadius}
+                          onChange={(e) =>
+                            setAdditionalLocations((prev) =>
+                              prev.map((l, i) =>
+                                i === idx ? { ...l, serviceRadius: e.target.value } : l
+                              )
+                            )
+                          }
+                          min="1"
+                          max="500"
+                          placeholder="50"
+                          className="w-full bg-gray-950 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Phone (optional)</label>
+                        <input
+                          type="tel"
+                          value={loc.phone}
+                          onChange={(e) =>
+                            setAdditionalLocations((prev) =>
+                              prev.map((l, i) =>
+                                i === idx ? { ...l, phone: e.target.value } : l
+                              )
+                            )
+                          }
+                          placeholder="(555) 000-0000"
+                          className="w-full bg-gray-950 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               <button
                 type="submit"
                 disabled={submitting}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-900 disabled:cursor-not-allowed text-white text-lg font-bold py-4 rounded-xl transition-colors shadow-lg shadow-blue-900/40"
               >
-                {submitting ? 'Submitting...' : 'Submit Application →'}
+                {submitting ? 'Submitting...' : 'Apply for Free Listing →'}
               </button>
 
               <p className="text-gray-500 text-xs text-center">

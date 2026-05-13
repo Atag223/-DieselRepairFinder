@@ -17,6 +17,7 @@ export interface ProviderCardData {
   reviewCount: number
   claimStatus: ClaimStatus
   is24_7: boolean
+  locationCount?: number
 }
 
 const CATEGORY_LABELS: Record<ProviderCategory, { label: string; icon: string }> = {
@@ -100,12 +101,6 @@ export default function ProviderCard({ provider }: { provider: ProviderCardData 
 
       {/* Contact info */}
       <div className="flex flex-wrap gap-3 text-sm text-gray-400">
-        {provider.phone && (
-          <span className="flex items-center gap-1">
-            <span>📞</span>
-            <span>{provider.phone}</span>
-          </span>
-        )}
         {provider.website && (
           <a
             href={provider.website.startsWith('http') ? provider.website : `https://${provider.website}`}
@@ -123,23 +118,21 @@ export default function ProviderCard({ provider }: { provider: ProviderCardData 
             <span>24/7</span>
           </span>
         )}
+        {provider.locationCount != null && provider.locationCount > 1 && (
+          <span className="flex items-center gap-1 text-blue-400">
+            <span>📍</span>
+            <span>Multiple locations</span>
+          </span>
+        )}
       </div>
 
       {/* Action buttons */}
       <div className="flex flex-wrap gap-2 pt-1">
-        {provider.phone && (
-          <a
-            href={`tel:${provider.phone.replace(/\D/g, '')}`}
-            className="flex-1 min-w-[100px] text-center bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-2 rounded-lg transition-colors"
-          >
-            📞 Call Now
-          </a>
-        )}
         <Link
-          href={`/?category=${provider.providerCategory}`}
-          className="flex-1 min-w-[100px] text-center bg-gray-800 hover:bg-gray-700 text-white text-sm font-semibold px-3 py-2 rounded-lg border border-gray-700 transition-colors"
+          href={`/?category=${provider.providerCategory}#request`}
+          className="flex-1 min-w-[100px] text-center bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-2 rounded-lg transition-colors"
         >
-          🚛 Request Help
+          🚛 Send Job Request
         </Link>
       </div>
 

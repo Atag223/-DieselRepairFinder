@@ -61,6 +61,14 @@ enum ClaimRequestStatus {
   DECLINED
 }
 
+enum LeadCreditTransactionType {
+  FREE_CREDIT
+  ADMIN_GRANT
+  STRIPE_PURCHASE
+  LEAD_DEBIT
+  REFUND
+}
+
 model ServiceRequest {
   id                String           @id @default(cuid())
   createdAt         DateTime         @default(now())
@@ -78,11 +86,19 @@ model ServiceRequest {
   requesterCompany  String?
   city              String?
   state             String?
+  latitude          Float?
+  longitude         Float?
   breakdownNow      Boolean          @default(false)
   truckType         String?
   unitNumber        String?
   roadsideLocation  String?
   specialNotes      String?
+
+  // Payment method (required at request time)
+  paymentMethod     String           @default("Unknown")
+  paymentNotes      String?
+  poNumber          String?
+  nationalAccountName String?
 
   status            RequestStatus    @default(PENDING)
   referenceId       String           @unique @default(cuid())
@@ -113,11 +129,21 @@ model ServiceProvider {
   active           Boolean          @default(true)
   providerCategory ProviderCategory @default(DIESEL_MECHANIC)
 
-  // Monetization fields
+  // Monetization fields (legacy)
   tier                ProviderTier @default(FREE)
   leadsReceived       Int          @default(0)
   freeLeadsRemaining  Int          @default(3)
   totalLeadsCharged   Int          @default(0)
+
+  // Credit-based billing fields
+  leadCredits              Int      @default(0)
+  freeLeadCreditsIssued    Boolean  @default(false)
+  stripeCustomerId         String?
+  stripeAccountBalanceCents Int     @default(0)
+  billingStatus            String?
+  claimedByEmail           String?
+  approvedAt               DateTime?
+  lastCreditGrantAt        DateTime?
 
   // Google Places import fields
   googlePlaceId     String?          @unique
@@ -145,6 +171,9 @@ model ServiceProvider {
 
   leads               Lead[]
   claimRequests       ProviderClaimRequest[]
+  creditTransactions  LeadCreditTransaction[]
+  payments            ProviderPayment[]
+  locations           ProviderLocation[]
 
   @@map("DieselMechanic")
 }
@@ -160,8 +189,14 @@ model Lead {
   charged          Boolean    @default(false)
   price            Float      @default(25)
 
+  providerLocationId  String?
+  distanceMiles       Float?
+  routingRank         Int?
+  routingRadiusUsed   Int?
+
   serviceRequest   ServiceRequest  @relation(fields: [serviceRequestId], references: [id])
   provider         ServiceProvider @relation(fields: [providerId], references: [id])
+  providerLocation ProviderLocation? @relation(fields: [providerLocationId], references: [id])
 
   @@map("DieselLead")
 }
@@ -181,4 +216,56 @@ model ProviderClaimRequest {
   provider     ServiceProvider    @relation(fields: [providerId], references: [id])
 
   @@map("ProviderClaimRequest")
+}
+
+model LeadCreditTransaction {
+  id                    String                    @id @default(cuid())
+  createdAt             DateTime                  @default(now())
+  providerId            String
+  amount                Int
+  type                  LeadCreditTransactionType
+  note                  String?
+  stripePaymentIntentId String?
+  provider              ServiceProvider           @relation(fields: [providerId], references: [id])
+
+  @@map("LeadCreditTransaction")
+}
+
+model ProviderPayment {
+  id                    String          @id @default(cuid())
+  createdAt             DateTime        @default(now())
+  providerId            String
+  stripePaymentIntentId String?
+  amountCents           Int
+  creditsPurchased      Int
+  status                String
+  provider              ServiceProvider @relation(fields: [providerId], references: [id])
+
+  @@map("ProviderPayment")
+}
+
+model ProviderLocation {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  providerId    String
+  locationName  String?
+  address       String?
+  city          String
+  state         String
+  zip           String?
+  latitude      Float?
+  longitude     Float?
+  serviceRadius Int      @default(50)
+  phone         String?
+  email         String?
+  contactName   String?
+  isPrimary     Boolean  @default(false)
+  active        Boolean  @default(true)
+  notes         String?
+
+  provider      ServiceProvider @relation(fields: [providerId], references: [id])
+  leads         Lead[]
+
+  @@map("ProviderLocation")
 }
