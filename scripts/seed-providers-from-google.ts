@@ -7,6 +7,7 @@
  * Usage:
  *   npm run seed:providers                        # full nationwide run
  *   npm run seed:providers -- --state TX          # single state
+ *   npm run seed:providers -- --category=hydraulic-hose-repair --state=IN
  *   npm run seed:providers -- --state TX --city Dallas  # single city
  *   npm run seed:providers -- --max-results 10    # cap results per query (default: 20)
  *   npm run seed:providers -- --delay 500         # ms between requests (default: 200)
@@ -33,32 +34,70 @@ const prisma = new PrismaClient()
 // CLI argument parsing
 // ---------------------------------------------------------------------------
 
-function parseArgs(): { state?: string; city?: string; maxResults: number; delayMs: number } {
+type CategoryFilter = 'diesel-mechanic' | 'mobile-tire-service' | 'heavy-duty-wrecker' | 'hydraulic-hose-repair'
+
+const CATEGORY_ARG_MAP: Record<CategoryFilter, ProviderCategory> = {
+  'diesel-mechanic': ProviderCategory.DIESEL_MECHANIC,
+  'mobile-tire-service': ProviderCategory.MOBILE_TIRE_SERVICE,
+  'heavy-duty-wrecker': ProviderCategory.HEAVY_DUTY_WRECKER,
+  'hydraulic-hose-repair': ProviderCategory.HYDRAULIC_HOSE_REPAIR,
+}
+
+function isCategoryFilter(value: string): value is CategoryFilter {
+  return value in CATEGORY_ARG_MAP
+}
+
+function parseArgs(): {
+  state?: string
+  city?: string
+  category?: CategoryFilter
+  invalidCategory?: string
+  maxResults: number
+  delayMs: number
+} {
   const args = process.argv.slice(2)
   let state: string | undefined
   let city: string | undefined
+  let category: CategoryFilter | undefined
+  let invalidCategory: string | undefined
   let maxResults = 20
   let delayMs = 200
 
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--state' && args[i + 1]) {
-      state = args[++i].toUpperCase()
-    } else if (args[i] === '--city' && args[i + 1]) {
-      city = args[++i]
-    } else if (args[i] === '--max-results' && args[i + 1]) {
-      const parsed = parseInt(args[++i], 10)
+    const arg = args[i]
+    const [key, inlineValue] = arg.split('=', 2)
+    const nextValue = inlineValue ?? args[i + 1]
+    const consumesNext = inlineValue === undefined
+
+    if (key === '--state' && nextValue) {
+      state = nextValue.toUpperCase()
+      if (consumesNext) i++
+    } else if (key === '--city' && nextValue) {
+      city = nextValue
+      if (consumesNext) i++
+    } else if (key === '--category' && nextValue) {
+      if (isCategoryFilter(nextValue)) {
+        category = nextValue
+      } else {
+        invalidCategory = nextValue
+      }
+      if (consumesNext) i++
+    } else if (key === '--max-results' && nextValue) {
+      const parsed = parseInt(nextValue, 10)
       if (!isNaN(parsed) && parsed > 0) {
         maxResults = Math.min(parsed, 20) // Google Places API max is 20
       }
-    } else if (args[i] === '--delay' && args[i + 1]) {
-      const parsed = parseInt(args[++i], 10)
+      if (consumesNext) i++
+    } else if (key === '--delay' && nextValue) {
+      const parsed = parseInt(nextValue, 10)
       if (!isNaN(parsed) && parsed >= 0) {
         delayMs = parsed
       }
+      if (consumesNext) i++
     }
   }
 
-  return { state, city, maxResults, delayMs }
+  return { state, city, category, invalidCategory, maxResults, delayMs }
 }
 
 // ---------------------------------------------------------------------------
@@ -314,7 +353,24 @@ async function main() {
     process.exit(1)
   }
 
-  const { state: filterState, city: filterCity, maxResults, delayMs } = parseArgs()
+  const {
+    state: filterState,
+    city: filterCity,
+    category: categoryArg,
+    invalidCategory,
+    maxResults,
+    delayMs,
+  } = parseArgs()
+
+  const selectedCategory = categoryArg ? CATEGORY_ARG_MAP[categoryArg] : undefined
+
+  // Validate --category argument
+  if (invalidCategory) {
+    console.error(
+      `ERROR: Unknown category "${invalidCategory}". Valid values: ${Object.keys(CATEGORY_ARG_MAP).join(', ')}.`,
+    )
+    process.exit(1)
+  }
 
   // Validate --state argument
   if (filterState && !(filterState in STATE_CITIES)) {
@@ -335,12 +391,17 @@ async function main() {
     : filterState
       ? `all cities in ${filterState}`
       : 'nationwide (all 50 states)'
+  const searchTerms = selectedCategory
+    ? SEARCH_TERMS.filter(({ category }) => category === selectedCategory)
+    : SEARCH_TERMS
 
   console.log(`\nDieselRepairFinder — Google Places Provider Seeder`)
+  console.log(`  Category    : ${categoryArg ?? 'all'}`)
+  console.log(`  State       : ${filterState ?? 'all'}`)
   console.log(`  Scope       : ${scope}`)
   console.log(`  Max results : ${maxResults} per query`)
   console.log(`  Delay       : ${delayMs} ms between requests`)
-  console.log(`  Search terms: ${SEARCH_TERMS.length}`)
+  console.log(`  Search terms: ${searchTerms.length}`)
   console.log('')
 
   let totalImported = 0
@@ -363,7 +424,7 @@ async function main() {
     console.log(`\n── ${state} (${citiesToProcess.length} ${citiesToProcess.length === 1 ? 'city' : 'cities'}) ──`)
 
     for (const city of citiesToProcess) {
-      for (const { query, category } of SEARCH_TERMS) {
+      for (const { query, category } of searchTerms) {
         const textQuery = `${query} ${city} ${state}`
         process.stdout.write(`  Searching: "${textQuery}" ... `)
 
