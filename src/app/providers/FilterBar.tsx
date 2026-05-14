@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTransition } from 'react'
+import { PROVIDER_CATEGORIES, parseProviderCategoryInput, providerCategoryToSlug } from '@/lib/provider-categories'
 
 const US_STATES = [
   { abbr: 'AL', name: 'Alabama' }, { abbr: 'AK', name: 'Alaska' },
@@ -31,12 +32,6 @@ const US_STATES = [
   { abbr: 'WI', name: 'Wisconsin' }, { abbr: 'WY', name: 'Wyoming' },
 ]
 
-const CATEGORIES = [
-  { value: 'DIESEL_MECHANIC', label: 'Diesel Mechanic', icon: '🔧' },
-  { value: 'MOBILE_TIRE_SERVICE', label: 'Mobile Tire Service', icon: '🛞' },
-  { value: 'HEAVY_DUTY_WRECKER', label: 'Heavy-Duty Wrecker', icon: '🚨' },
-]
-
 interface FilterBarProps {
   cities: string[]
 }
@@ -48,7 +43,8 @@ export default function FilterBar({ cities }: FilterBarProps) {
 
   const currentState = searchParams.get('state') ?? ''
   const currentCity = searchParams.get('city') ?? ''
-  const currentCategory = searchParams.get('category') ?? ''
+  const currentCategoryValue = parseProviderCategoryInput(searchParams.get('category'))
+  const currentCategory = currentCategoryValue ? providerCategoryToSlug(currentCategoryValue) : ''
 
   function update(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString())
@@ -84,8 +80,8 @@ export default function FilterBar({ cities }: FilterBarProps) {
             className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Types</option>
-            {CATEGORIES.map((c) => (
-              <option key={c.value} value={c.value}>
+            {PROVIDER_CATEGORIES.map((c) => (
+              <option key={c.value} value={c.slug}>
                 {c.icon} {c.label}
               </option>
             ))}

@@ -3,6 +3,10 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import SiteNav from '@/app/components/SiteNav'
+import {
+  PROVIDER_CATEGORIES,
+  type ProviderCategoryValue as ProviderCategory,
+} from '@/lib/provider-categories'
 
 const US_STATES = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS',
@@ -11,7 +15,7 @@ const US_STATES = [
   'WI','WY',
 ]
 
-const SERVICE_OPTIONS = [
+const GENERAL_SERVICE_OPTIONS = [
   'Engine Repair',
   'Electrical Systems',
   'Brake Service',
@@ -26,10 +30,20 @@ const SERVICE_OPTIONS = [
   'Emergency No-Start',
 ]
 
-const PROVIDER_CATEGORIES = [
-  { value: 'DIESEL_MECHANIC', label: 'Mobile Diesel Mechanic', icon: '🔧' },
-  { value: 'MOBILE_TIRE_SERVICE', label: 'Mobile Tire Service', icon: '🛞' },
-  { value: 'HEAVY_DUTY_WRECKER', label: 'Heavy-Duty Wrecker', icon: '🚨' },
+const HYDRAULIC_SERVICE_OPTIONS = [
+  'Mobile Service',
+  'Hydraulic Hose Service',
+  'Hydraulic Hose Repair',
+  'Mobile Hydraulic Repair',
+  'On-Site Hydraulic Hose Repair',
+  'Hydraulic Line Repair',
+  'Hydraulic Fitting Repair',
+  'Hydraulic Cylinder Repair',
+  'Heavy Equipment',
+  'Agriculture',
+  'Industrial',
+  'Construction Equipment',
+  'Fleet Service',
 ]
 
 interface FormData {
@@ -44,7 +58,7 @@ interface FormData {
   is24_7: boolean
   services: string[]
   notes: string
-  providerCategory: string
+  providerCategory: ProviderCategory
 }
 
 interface AdditionalLocation {
@@ -80,6 +94,10 @@ export default function JoinPage() {
   const [additionalLocations, setAdditionalLocations] = useState<AdditionalLocation[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<{ success: boolean; error?: string } | null>(null)
+  const serviceOptions =
+    form.providerCategory === 'HYDRAULIC_HOSE_REPAIR'
+      ? HYDRAULIC_SERVICE_OPTIONS
+      : GENERAL_SERVICE_OPTIONS
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -237,7 +255,7 @@ export default function JoinPage() {
                 <label className="block text-sm font-medium text-gray-300 mb-3">
                   Provider Category <span className="text-red-400">*</span>
                 </label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {PROVIDER_CATEGORIES.map((cat) => (
                     <button
                       key={cat.value}
@@ -402,10 +420,18 @@ export default function JoinPage() {
               {/* Services */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-3">
-                  Services Offered (select all that apply)
+                  {form.providerCategory === 'HYDRAULIC_HOSE_REPAIR'
+                    ? 'Hydraulic Specialties & Coverage (select all that apply)'
+                    : 'Services Offered (select all that apply)'}
                 </label>
+                {form.providerCategory === 'HYDRAULIC_HOSE_REPAIR' && (
+                  <p className="text-xs text-gray-500 mb-3">
+                    Use these options to highlight mobile service availability, hydraulic
+                    specialties, and the equipment types you support.
+                  </p>
+                )}
                 <div className="grid grid-cols-2 gap-2">
-                  {SERVICE_OPTIONS.map((service) => (
+                  {serviceOptions.map((service) => (
                     <button
                       key={service}
                       type="button"
@@ -582,7 +608,7 @@ export default function JoinPage() {
             <span className="text-lg">🚛</span>
             <span className="font-semibold text-gray-400">DieselRepairFinder.com</span>
           </Link>
-          <p>Mobile Diesel Repair · Tire Service · Heavy-Duty Towing</p>
+          <p>Mobile Diesel Repair · Tire Service · Hydraulic Hose Repair · Heavy-Duty Towing</p>
         </div>
       </footer>
     </div>

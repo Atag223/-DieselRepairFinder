@@ -47,12 +47,12 @@ export async function generateMetadata({ params }: Props) {
   const city = decodeURIComponent(rawCity)
   const stateName = STATE_NAMES[state] ?? state
   return {
-    title: `Mobile Diesel Repair & Hydraulic Hose Repair in ${city}, ${stateName} | DieselRepairFinder`,
-    description: `Find mobile diesel mechanics, mobile tire service, hydraulic hose repair, and heavy-duty towing in ${city}, ${stateName}. 24/7 roadside truck help near you.`,
+    title: `24/7 Hydraulic Hose Service in ${city}, ${stateName} | DieselRepairFinder`,
+    description: `Find mobile hydraulic hose repair, on-site hydraulic repair, and heavy equipment hydraulic service in ${city}, ${stateName}.`,
   }
 }
 
-export default async function CityPage({ params }: Props) {
+export default async function HydraulicHoseRepairCityPage({ params }: Props) {
   const { state: rawState, city: rawCity } = await params
   const state = rawState.toUpperCase()
   const city = decodeURIComponent(rawCity)
@@ -64,6 +64,7 @@ export default async function CityPage({ params }: Props) {
     where: {
       active: true,
       deletedAt: null,
+      providerCategory: 'HYDRAULIC_HOSE_REPAIR',
       state,
       city: { equals: city, mode: 'insensitive' },
     },
@@ -77,104 +78,49 @@ export default async function CityPage({ params }: Props) {
 
   const providers = sortProviders(rows as ProviderCardData[])
 
-  // Count nearby cities too (same state)
-  const nearbyCities = await prisma.serviceProvider.findMany({
-    where: { active: true, deletedAt: null, state },
-    select: { city: true },
-    distinct: ['city'],
-    orderBy: { city: 'asc' },
-  })
-
   return (
     <div className="min-h-screen bg-black text-white">
       <SiteNav />
 
       <main className="max-w-7xl mx-auto px-4 py-10">
-        {/* Breadcrumb */}
         <nav className="text-sm text-gray-500 mb-6">
-          <Link href="/providers" className="hover:text-white">Providers</Link>
+          <Link href="/hydraulic-hose-repair" className="hover:text-white">Hydraulic Hose Repair</Link>
           <span className="mx-2">›</span>
-          <Link href={`/state/${state}`} className="hover:text-white">{stateName}</Link>
+          <Link href={`/hydraulic-hose-repair/${state}`} className="hover:text-white">{stateName}</Link>
           <span className="mx-2">›</span>
           <span className="text-white">{city}</span>
         </nav>
 
-        {/* Hero */}
         <div className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-extrabold mb-2">
-            Mobile Diesel Repair in {city}, {stateName}
+            Mobile Hydraulic Hose Repair in {city}, {stateName}
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl">
-            Find mobile diesel mechanics, mobile tire service, hydraulic hose repair, and
-            heavy-duty towing in {city}, {stateName}. Get roadside truck help 24/7 — no tow
-            required.
+            Browse emergency hydraulic hose repair providers for blown hoses, leaking hydraulic
+            lines, hydraulic fitting repair, and heavy equipment hydraulic issues in {city}.
           </p>
         </div>
 
-        {/* Provider count */}
-        <p className="text-sm text-gray-500 mb-6">
-          {providers.length === 0
-            ? `No providers listed in ${city} yet.`
-            : `${providers.length} provider${providers.length !== 1 ? 's' : ''} in ${city}, ${state}`}
-        </p>
-
-        {/* Provider grid */}
         {providers.length > 0 ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
-            {providers.map((p) => (
-              <ProviderCard key={p.id} provider={p} />
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {providers.map((provider) => (
+              <ProviderCard key={provider.id} provider={provider} />
             ))}
           </div>
         ) : (
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-10 text-center mb-12">
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-10 text-center">
             <div className="text-4xl mb-3">🔍</div>
             <p className="text-gray-400 mb-4">
-              No providers listed in {city} yet. Try browsing all of {stateName}.
+              No hydraulic hose repair providers are listed in {city} yet.
             </p>
-            <Link href={`/state/${state}`} className="inline-block bg-blue-600 hover:bg-blue-500 text-white font-semibold px-6 py-3 rounded-lg transition-colors">
-              All Providers in {stateName}
+            <Link
+              href="/?category=hydraulic-hose-repair#request"
+              className="inline-block bg-blue-600 hover:bg-blue-500 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
+            >
+              Send Job Request
             </Link>
           </div>
         )}
-
-        {/* Nearby cities */}
-        {nearbyCities.length > 1 && (
-          <div className="mb-10">
-            <h2 className="text-lg font-bold mb-3">Other Cities in {stateName}</h2>
-            <div className="flex flex-wrap gap-2">
-              {nearbyCities
-                .filter((c) => c.city.toLowerCase() !== city.toLowerCase())
-                .map((c) => (
-                  <Link
-                    key={c.city}
-                    href={`/city/${state}/${encodeURIComponent(c.city)}`}
-                    className="text-sm bg-gray-900 hover:bg-gray-800 border border-gray-700 hover:border-gray-600 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition-colors"
-                  >
-                    {c.city}
-                  </Link>
-                ))}
-            </div>
-          </div>
-        )}
-
-        {/* SEO copy */}
-        <div className="border-t border-gray-800 pt-8 text-gray-500 text-sm space-y-3">
-          <h2 className="text-white font-semibold">
-            Roadside Truck Help in {city}, {stateName}
-          </h2>
-          <p>
-            DieselRepairFinder connects truck drivers and fleet operators with local mobile diesel
-            repair, mobile tire service, hydraulic hose repair, and heavy-duty towing in {city},{' '}
-            {stateName}. Our providers come to you — roadside, truckstop, farm, or job site. No
-            tow required.
-          </p>
-          <p>
-            Services available in {city}: mobile diesel repair, no-start &amp; engine diagnostics,
-            DEF/emissions repair, air brake service, mobile tire service, blowout response, flat
-            tire repair, blown hydraulic hose replacement, hydraulic fitting repair, heavy-duty
-            wrecker, and roadside truck recovery.
-          </p>
-        </div>
       </main>
     </div>
   )

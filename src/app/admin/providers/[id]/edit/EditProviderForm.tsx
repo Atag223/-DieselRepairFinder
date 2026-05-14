@@ -4,6 +4,7 @@ import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { ServiceProvider } from '@prisma/client'
+import { PROVIDER_CATEGORIES } from '@/lib/provider-categories'
 
 const US_STATES = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
@@ -138,9 +139,11 @@ export default function EditProviderForm({ provider }: Props) {
             onChange={(e) => set('providerCategory', e.target.value)}
             className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 text-sm"
           >
-            <option value="DIESEL_MECHANIC">Diesel Mechanic</option>
-            <option value="MOBILE_TIRE_SERVICE">Mobile Tire Service</option>
-            <option value="HEAVY_DUTY_WRECKER">Heavy-Duty Wrecker</option>
+            {PROVIDER_CATEGORIES.map((category) => (
+              <option key={category.value} value={category.value}>
+                {category.label}
+              </option>
+            ))}
           </select>
         </div>
       </div>

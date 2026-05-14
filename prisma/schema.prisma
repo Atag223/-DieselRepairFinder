@@ -22,6 +22,7 @@ enum ProviderCategory {
   DIESEL_MECHANIC
   MOBILE_TIRE_SERVICE
   HEAVY_DUTY_WRECKER
+  HYDRAULIC_HOSE_REPAIR
 }
 
 enum ProviderTier {
