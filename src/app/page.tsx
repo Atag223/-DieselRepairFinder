@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
 import SiteNav from './components/SiteNav'
 import {
   ISSUE_TYPES_BY_CATEGORY,
@@ -90,7 +89,6 @@ const PAYMENT_METHODS = [
 ]
 
 export default function HomePage() {
-  const searchParams = useSearchParams()
   const [selectedCategory, setSelectedCategory] = useState<ProviderCategory>('DIESEL_MECHANIC')
   const [form, setForm] = useState<FormData>({
     requesterName: '',
@@ -117,12 +115,14 @@ export default function HomePage() {
   const [result, setResult] = useState<{ success: boolean; referenceId?: string; error?: string } | null>(null)
 
   useEffect(() => {
-    const category = parseProviderCategoryInput(searchParams.get('category'))
+    const category = parseProviderCategoryInput(
+      typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('category') : null
+    )
     if (category && category !== selectedCategory) {
       setSelectedCategory(category)
       setForm((prev) => ({ ...prev, issueType: '' }))
     }
-  }, [searchParams, selectedCategory])
+  }, [selectedCategory])
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>

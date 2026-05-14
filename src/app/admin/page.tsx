@@ -3,6 +3,7 @@ import { getProviderLeadStats } from '@/lib/leads'
 import Link from 'next/link'
 import { ClaimRequestStatus } from '@prisma/client'
 import AdminLogout from './AdminLogout'
+import { getProviderCategoryDefinition } from '@/lib/provider-categories'
 
 export const dynamic = 'force-dynamic'
 
@@ -126,7 +127,8 @@ export default async function AdminPage() {
                             {p.city}, {p.state}
                           </td>
                           <td className="px-4 py-3 text-gray-400 text-xs">
-                            {p.providerCategory.replace(/_/g, ' ')}
+                            {getProviderCategoryDefinition(p.providerCategory)?.label ??
+                              p.providerCategory.replace(/_/g, ' ')}
                           </td>
                           <td className="px-4 py-3 text-gray-400 text-xs">
                             {p.createdAt.toLocaleDateString()}
@@ -151,10 +153,11 @@ export default async function AdminPage() {
             {providerSummary && (
               <div className="mb-10">
                 <h2 className="text-xl font-bold mb-4">Provider Summary</h2>
-                <div className="grid sm:grid-cols-3 gap-4 mb-4">
+                <div className="grid sm:grid-cols-4 gap-4 mb-4">
                   {[
                     { label: 'Diesel Mechanics', value: providerSummary.byCategory.DIESEL_MECHANIC, icon: '🔧' },
                     { label: 'Mobile Tire Services', value: providerSummary.byCategory.MOBILE_TIRE_SERVICE, icon: '🛞' },
+                    { label: 'Hydraulic Hose Repair', value: providerSummary.byCategory.HYDRAULIC_HOSE_REPAIR, icon: '🧰' },
                     { label: 'Heavy-Duty Wreckers', value: providerSummary.byCategory.HEAVY_DUTY_WRECKER, icon: '🚨' },
                   ].map((c) => (
                     <div key={c.label} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
@@ -300,7 +303,9 @@ export default async function AdminPage() {
                           <td className="px-4 py-3 font-medium text-white">{p.businessName}</td>
                           <td className="px-4 py-3 text-gray-400">{p.city}</td>
                           <td className="px-4 py-3 text-gray-400">{p.state}</td>
-                          <td className="px-4 py-3 text-gray-400 text-xs">{p.category}</td>
+                          <td className="px-4 py-3 text-gray-400 text-xs">
+                            {getProviderCategoryDefinition(p.category)?.label ?? p.category}
+                          </td>
                           <td className="px-4 py-3">
                             <span
                               className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
@@ -409,6 +414,7 @@ async function fetchProviderSummary() {
       DIESEL_MECHANIC: catMap.DIESEL_MECHANIC ?? 0,
       MOBILE_TIRE_SERVICE: catMap.MOBILE_TIRE_SERVICE ?? 0,
       HEAVY_DUTY_WRECKER: catMap.HEAVY_DUTY_WRECKER ?? 0,
+      HYDRAULIC_HOSE_REPAIR: catMap.HYDRAULIC_HOSE_REPAIR ?? 0,
     },
     byVerification: {
       verified: verMap.VERIFIED ?? 0,

@@ -109,9 +109,12 @@ const CATEGORY_BY_SLUG = Object.fromEntries(
   PROVIDER_CATEGORY_DEFINITIONS.map((category) => [category.slug, category])
 ) as Record<ProviderCategorySlug, ProviderCategoryDefinition>
 
-export const ISSUE_TYPES_BY_CATEGORY = Object.fromEntries(
-  PROVIDER_CATEGORY_DEFINITIONS.map((category) => [category.value, category.issueTypes])
-) as Record<ProviderCategoryValue, readonly string[]>
+export const ISSUE_TYPES_BY_CATEGORY = PROVIDER_CATEGORY_DEFINITIONS.reduce<
+  Record<ProviderCategoryValue, readonly string[]>
+>((acc, category) => {
+  acc[category.value] = category.issueTypes
+  return acc
+}, {} as Record<ProviderCategoryValue, readonly string[]>)
 
 export function getProviderCategoryDefinition(
   value: string | null | undefined

@@ -15,7 +15,7 @@
  *   GOOGLE_PLACES_API_KEY  – A valid Google Cloud API key with the Places API enabled.
  *
  * Behaviour:
- *   - Searches each city × search term combination (4 terms × 5 cities × 50 states).
+ *   - Searches each city × search term combination (multiple terms × 5 cities × 50 states).
  *   - Caps each query at MAX_RESULTS (default 20, max 20 per Google Places API limit).
  *   - Deduplicates by Google Place ID when available, otherwise by
  *     businessName + city + state + phone.
@@ -72,6 +72,15 @@ const SEARCH_TERMS: { query: string; category: ProviderCategory }[] = [
   { query: 'mobile tire service', category: ProviderCategory.MOBILE_TIRE_SERVICE },
   { query: 'heavy duty wrecker', category: ProviderCategory.HEAVY_DUTY_WRECKER },
   { query: 'heavy duty towing', category: ProviderCategory.HEAVY_DUTY_WRECKER },
+  { query: 'mobile hydraulic hose repair', category: ProviderCategory.HYDRAULIC_HOSE_REPAIR },
+  { query: 'hydraulic hose repair service', category: ProviderCategory.HYDRAULIC_HOSE_REPAIR },
+  { query: 'hydraulic repair service', category: ProviderCategory.HYDRAULIC_HOSE_REPAIR },
+  { query: 'on site hydraulic hose repair', category: ProviderCategory.HYDRAULIC_HOSE_REPAIR },
+  { query: 'mobile hydraulic line repair', category: ProviderCategory.HYDRAULIC_HOSE_REPAIR },
+  { query: 'hydraulic hose repair truck', category: ProviderCategory.HYDRAULIC_HOSE_REPAIR },
+  { query: 'hydraulic equipment repair', category: ProviderCategory.HYDRAULIC_HOSE_REPAIR },
+  { query: 'industrial hydraulic repair', category: ProviderCategory.HYDRAULIC_HOSE_REPAIR },
+  { query: 'heavy equipment hydraulic hose repair', category: ProviderCategory.HYDRAULIC_HOSE_REPAIR },
 ]
 
 // ---------------------------------------------------------------------------
@@ -250,6 +259,13 @@ async function importPlace(
     DIESEL_MECHANIC: ['Engine Repair', 'Electrical Systems', 'Fuel System', 'Preventive Maintenance'],
     MOBILE_TIRE_SERVICE: ['Tire Service'],
     HEAVY_DUTY_WRECKER: ['Heavy-Duty Towing', 'Recovery'],
+    HYDRAULIC_HOSE_REPAIR: [
+      'Mobile Service',
+      'Hydraulic Hose Repair',
+      'Hydraulic Line Repair',
+      'Heavy Equipment',
+      'Industrial',
+    ],
   }
 
   await prisma.serviceProvider.create({
