@@ -5,13 +5,18 @@ import { ProviderCategory, ProviderTier, VerificationStatus } from '@prisma/clie
 import ProviderCard, { ProviderCardData } from './ProviderCard'
 import FilterBar from './FilterBar'
 import SiteNav from '@/app/components/SiteNav'
+import {
+  getProviderCategoryDefinition,
+  parseProviderCategoryInput,
+} from '@/lib/provider-categories'
 
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'Find Mobile Diesel Repair, Tire Service & Towing Providers | DieselRepairFinder',
+  title:
+    'Find Mobile Diesel Repair, Tire Service, Hydraulic Hose Repair & Towing Providers | DieselRepairFinder',
   description:
-    'Browse verified mobile diesel mechanics, mobile tire service providers, and heavy-duty tow trucks near you. Find roadside truck help 24/7.',
+    'Browse verified mobile diesel mechanics, mobile tire service providers, hydraulic hose repair companies, and heavy-duty tow trucks near you. Find roadside and job-site help 24/7.',
 }
 
 // Sort providers: verified first, then by tier, then rating/reviews, then has phone, then recently updated
@@ -40,7 +45,8 @@ async function getProviders(state: string, city: string, category: string) {
   const where: Record<string, unknown> = { active: true, deletedAt: null }
   if (state) where.state = state
   if (city) where.city = { equals: city, mode: 'insensitive' }
-  if (category) where.providerCategory = category as ProviderCategory
+  const parsedCategory = parseProviderCategoryInput(category)
+  if (parsedCategory) where.providerCategory = parsedCategory as ProviderCategory
 
   const rows = await prisma.serviceProvider.findMany({
     where,
@@ -87,20 +93,14 @@ export default async function ProvidersPage({
   const state = params.state ?? ''
   const city = params.city ?? ''
   const category = params.category ?? ''
+  const categoryDefinition = getProviderCategoryDefinition(category)
 
   const [providers, cities] = await Promise.all([
     getProviders(state, city, category),
     getCitiesForState(state),
   ])
 
-  const categoryLabel =
-    category === 'DIESEL_MECHANIC'
-      ? 'Diesel Mechanics'
-      : category === 'MOBILE_TIRE_SERVICE'
-      ? 'Mobile Tire Services'
-      : category === 'HEAVY_DUTY_WRECKER'
-      ? 'Heavy-Duty Wreckers'
-      : 'Service Providers'
+  const categoryLabel = categoryDefinition?.pluralLabel ?? 'Service Providers'
 
   const heading = [
     categoryLabel,
@@ -121,8 +121,9 @@ export default async function ProvidersPage({
             {heading || 'Find Mobile Diesel Repair Near You'}
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl">
-            Browse verified providers offering mobile diesel repair, mobile tire service, and
-            heavy-duty towing. Roadside truck help available 24/7 across the US.
+            Browse verified providers offering mobile diesel repair, mobile tire service, mobile
+            hydraulic hose repair, and heavy-duty towing. Roadside and job-site help available
+            24/7 across the US.
           </p>
         </div>
 
@@ -164,15 +165,17 @@ export default async function ProvidersPage({
         <div className="mt-16 border-t border-gray-800 pt-8 text-gray-500 text-sm space-y-2">
           <p>
             DieselRepairFinder connects truck drivers and fleet operators with local mobile diesel
-            repair, mobile tire service, and heavy-duty towing providers. Whether you need roadside
-            truck help, a mobile mechanic, or a heavy-duty wrecker, our directory covers providers
-            across all 50 states.
+            repair, mobile tire service, hydraulic hose repair, and heavy-duty towing providers.
+            Whether you need roadside truck help, a mobile mechanic, a hydraulic hose repair truck,
+            or a heavy-duty wrecker, our directory covers providers across all 50 states.
           </p>
           <p>
             Find a verified mobile diesel mechanic near you — available for no-start issues, engine
             repair, DEF / emissions work, brake service, and more. Mobile tire service providers in
             our directory can handle flat repairs, tire replacements, and blowouts on-site.
-            Heavy-duty towing and roadside truck recovery specialists are also listed.
+            Hydraulic hose repair providers can help with blown hoses, hydraulic line leaks, mobile
+            hose replacement, and heavy equipment hydraulic issues. Heavy-duty towing and roadside
+            truck recovery specialists are also listed.
           </p>
         </div>
       </main>

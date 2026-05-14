@@ -47,8 +47,8 @@ export async function generateMetadata({ params }: Props) {
   const city = decodeURIComponent(rawCity)
   const stateName = STATE_NAMES[state] ?? state
   return {
-    title: `Mobile Diesel Repair in ${city}, ${stateName} | DieselRepairFinder`,
-    description: `Find mobile diesel mechanics, mobile tire service, and heavy-duty towing in ${city}, ${stateName}. 24/7 roadside truck help near you.`,
+    title: `Mobile Diesel Repair & Hydraulic Hose Repair in ${city}, ${stateName} | DieselRepairFinder`,
+    description: `Find mobile diesel mechanics, mobile tire service, hydraulic hose repair, and heavy-duty towing in ${city}, ${stateName}. 24/7 roadside truck help near you.`,
   }
 }
 
@@ -105,8 +105,9 @@ export default async function CityPage({ params }: Props) {
             Mobile Diesel Repair in {city}, {stateName}
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl">
-            Find mobile diesel mechanics, mobile tire service, and heavy-duty towing in{' '}
-            {city}, {stateName}. Get roadside truck help 24/7 — no tow required.
+            Find mobile diesel mechanics, mobile tire service, hydraulic hose repair, and
+            heavy-duty towing in {city}, {stateName}. Get roadside truck help 24/7 — no tow
+            required.
           </p>
         </div>
 
@@ -163,13 +164,15 @@ export default async function CityPage({ params }: Props) {
           </h2>
           <p>
             DieselRepairFinder connects truck drivers and fleet operators with local mobile diesel
-            repair, mobile tire service, and heavy-duty towing in {city}, {stateName}. Our
-            providers come to you — roadside, truckstop, or job site. No tow required.
+            repair, mobile tire service, hydraulic hose repair, and heavy-duty towing in {city},{' '}
+            {stateName}. Our providers come to you — roadside, truckstop, farm, or job site. No
+            tow required.
           </p>
           <p>
             Services available in {city}: mobile diesel repair, no-start &amp; engine diagnostics,
             DEF/emissions repair, air brake service, mobile tire service, blowout response, flat
-            tire repair, heavy-duty wrecker, and roadside truck recovery.
+            tire repair, blown hydraulic hose replacement, hydraulic fitting repair, heavy-duty
+            wrecker, and roadside truck recovery.
           </p>
         </div>
       </main>

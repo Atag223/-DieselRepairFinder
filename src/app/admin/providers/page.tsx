@@ -3,13 +3,15 @@ import { prisma } from '@/lib/prisma'
 import { ProviderCategory } from '@prisma/client'
 import AdminProviderActions from './AdminProviderActions'
 import AdminLogout from '../AdminLogout'
+import { PROVIDER_CATEGORIES, getProviderCategoryDefinition } from '@/lib/provider-categories'
 
 export const dynamic = 'force-dynamic'
 
 const CATEGORY_LABEL: Record<ProviderCategory, string> = {
   DIESEL_MECHANIC: 'Diesel Mechanic',
-  MOBILE_TIRE_SERVICE: 'Mobile Tire',
-  HEAVY_DUTY_WRECKER: 'Wrecker',
+  MOBILE_TIRE_SERVICE: 'Mobile Tire Service',
+  HEAVY_DUTY_WRECKER: 'Heavy-Duty Wrecker',
+  HYDRAULIC_HOSE_REPAIR: 'Mobile Hydraulic Hose Repair',
 }
 
 interface SearchParams {
@@ -143,9 +145,11 @@ export default async function AdminProvidersPage({
             className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
           >
             <option value="">All Categories</option>
-            <option value="DIESEL_MECHANIC">Diesel Mechanic</option>
-            <option value="MOBILE_TIRE_SERVICE">Mobile Tire Service</option>
-            <option value="HEAVY_DUTY_WRECKER">Heavy-Duty Wrecker</option>
+            {PROVIDER_CATEGORIES.map((category) => (
+              <option key={category.value} value={category.value}>
+                {category.label}
+              </option>
+            ))}
           </select>
           <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer px-1">
             <input
@@ -221,7 +225,7 @@ export default async function AdminProvidersPage({
                         {p.city}, {p.state}
                       </td>
                       <td className="px-4 py-3 text-gray-400 text-xs">
-                        {CATEGORY_LABEL[p.providerCategory]}
+                        {getProviderCategoryDefinition(p.providerCategory)?.label ?? CATEGORY_LABEL[p.providerCategory]}
                       </td>
                       <td className="px-4 py-3">
                         <span

@@ -1,5 +1,9 @@
 import Link from 'next/link'
 import { ProviderCategory, ProviderTier, VerificationStatus, ClaimStatus } from '@prisma/client'
+import {
+  getProviderCategoryDefinition,
+  providerCategoryToSlug,
+} from '@/lib/provider-categories'
 
 export interface ProviderCardData {
   id: string
@@ -24,6 +28,7 @@ const CATEGORY_LABELS: Record<ProviderCategory, { label: string; icon: string }>
   DIESEL_MECHANIC: { label: 'Diesel Mechanic', icon: '🔧' },
   MOBILE_TIRE_SERVICE: { label: 'Mobile Tire Service', icon: '🛞' },
   HEAVY_DUTY_WRECKER: { label: 'Heavy-Duty Wrecker', icon: '🚨' },
+  HYDRAULIC_HOSE_REPAIR: { label: 'Mobile Hydraulic Hose Repair', icon: '🧰' },
 }
 
 const TIER_BADGE: Record<ProviderTier, { label: string; cls: string } | null> = {
@@ -38,6 +43,26 @@ export default function ProviderCard({ provider }: { provider: ProviderCardData 
   const verified =
     provider.verificationStatus === 'VERIFIED' || provider.isVerified
   const unclaimed = provider.claimStatus === 'UNCLAIMED'
+  const categoryDefinition = getProviderCategoryDefinition(provider.providerCategory)
+  const categoryHref = categoryDefinition
+    ? `/?category=${providerCategoryToSlug(provider.providerCategory)}#request`
+    : '/#request'
+  const badges = Array.from(
+    new Set([
+      ...(provider.providerCategory === 'HYDRAULIC_HOSE_REPAIR' ? ['Mobile Service'] : []),
+      ...(provider.is24_7 ? ['24/7'] : []),
+      ...provider.services.flatMap((service) => {
+        const normalized = service.toLowerCase()
+        return [
+          normalized.includes('heavy equipment') ? 'Heavy Equipment' : null,
+          normalized.includes('agriculture') ? 'Agriculture' : null,
+          normalized.includes('industrial') ? 'Industrial' : null,
+          normalized.includes('construction') ? 'Construction Equipment' : null,
+          normalized.includes('fleet') ? 'Fleet Service' : null,
+        ].filter(Boolean) as string[]
+      }),
+    ])
+  )
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 flex flex-col gap-3 hover:border-gray-700 transition-colors">
@@ -77,6 +102,19 @@ export default function ProviderCard({ provider }: { provider: ProviderCardData 
           {provider.reviewCount > 0 && (
             <span className="text-gray-500 text-xs">({provider.reviewCount} reviews)</span>
           )}
+        </div>
+      )}
+
+      {badges.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {badges.map((badge) => (
+            <span
+              key={badge}
+              className="text-xs bg-blue-950/60 text-blue-200 px-2 py-0.5 rounded-full border border-blue-900/60"
+            >
+              {badge}
+            </span>
+          ))}
         </div>
       )}
 
@@ -129,7 +167,7 @@ export default function ProviderCard({ provider }: { provider: ProviderCardData 
       {/* Action buttons */}
       <div className="flex flex-wrap gap-2 pt-1">
         <Link
-          href={`/?category=${provider.providerCategory}#request`}
+          href={categoryHref}
           className="flex-1 min-w-[100px] text-center bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-2 rounded-lg transition-colors"
         >
           🚛 Send Job Request

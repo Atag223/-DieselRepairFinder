@@ -45,8 +45,8 @@ export async function generateMetadata({ params }: Props) {
   const { state } = await params
   const stateName = STATE_NAMES[state.toUpperCase()] ?? state.toUpperCase()
   return {
-    title: `Mobile Diesel Repair & Roadside Truck Help in ${stateName} | DieselRepairFinder`,
-    description: `Find mobile diesel mechanics, mobile tire service, and heavy-duty towing in ${stateName}. 24/7 roadside truck help near you.`,
+    title: `Mobile Diesel Repair, Hydraulic Hose Repair & Roadside Truck Help in ${stateName} | DieselRepairFinder`,
+    description: `Find mobile diesel mechanics, mobile tire service, hydraulic hose repair, and heavy-duty towing in ${stateName}. 24/7 roadside truck help near you.`,
   }
 }
 
@@ -87,6 +87,7 @@ export default async function StatePage({ params }: Props) {
     DIESEL_MECHANIC: providers.filter((p) => p.providerCategory === ProviderCategory.DIESEL_MECHANIC),
     MOBILE_TIRE_SERVICE: providers.filter((p) => p.providerCategory === ProviderCategory.MOBILE_TIRE_SERVICE),
     HEAVY_DUTY_WRECKER: providers.filter((p) => p.providerCategory === ProviderCategory.HEAVY_DUTY_WRECKER),
+    HYDRAULIC_HOSE_REPAIR: providers.filter((p) => p.providerCategory === ProviderCategory.HYDRAULIC_HOSE_REPAIR),
   }
 
   return (
@@ -107,16 +108,17 @@ export default async function StatePage({ params }: Props) {
             Mobile Diesel Repair in {stateName}
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl">
-            Find mobile diesel mechanics, mobile tire service, and heavy-duty towing in{' '}
-            {stateName}. Get roadside truck help 24/7 — no tow required.
+            Find mobile diesel mechanics, mobile tire service, hydraulic hose repair, and
+            heavy-duty towing in {stateName}. Get roadside truck help 24/7 — no tow required.
           </p>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-10">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
           {[
             { label: 'Diesel Mechanics', value: byCategory.DIESEL_MECHANIC.length, icon: '🔧' },
             { label: 'Mobile Tire Services', value: byCategory.MOBILE_TIRE_SERVICE.length, icon: '🛞' },
+            { label: 'Hydraulic Hose Repair', value: byCategory.HYDRAULIC_HOSE_REPAIR.length, icon: '🧰' },
             { label: 'Heavy-Duty Wreckers', value: byCategory.HEAVY_DUTY_WRECKER.length, icon: '🚨' },
           ].map((s) => (
             <div key={s.label} className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
@@ -169,14 +171,15 @@ export default async function StatePage({ params }: Props) {
           <h2 className="text-white font-semibold">Mobile Diesel Repair in {stateName}</h2>
           <p>
             DieselRepairFinder lists mobile diesel repair services, mobile tire service providers,
-            and heavy-duty towing companies across {stateName}. Whether your truck breaks down on
-            the interstate or at a job site, our network of verified roadside truck help providers
-            can come to you.
+            hydraulic hose repair companies, and heavy-duty towing providers across {stateName}.
+            Whether your truck breaks down on the interstate or your equipment loses a hydraulic
+            line at a job site, our network of verified providers can come to you.
           </p>
           <p>
             Our {stateName} providers offer: mobile diesel repair, no-start assistance, engine
             diagnostics, DEF/emissions repair, air brake service, tire changes, blowout response,
-            and heavy-duty wrecker &amp; recovery services.
+            mobile hose replacement, industrial hydraulic repair, and heavy-duty wrecker &amp;
+            recovery services.
           </p>
         </div>
       </main>

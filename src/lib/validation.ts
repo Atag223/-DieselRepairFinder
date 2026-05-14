@@ -1,3 +1,9 @@
+import {
+  VALID_PROVIDER_CATEGORIES,
+  parseProviderCategory,
+  type ProviderCategoryValue,
+} from '@/lib/provider-categories'
+
 /**
  * Validates an email address using a safe, non-regex string check
  * that avoids polynomial ReDoS vulnerabilities.
@@ -27,20 +33,4 @@ export function parseServices(services: unknown): string[] {
   return []
 }
 
-export const VALID_PROVIDER_CATEGORIES = [
-  'DIESEL_MECHANIC',
-  'MOBILE_TIRE_SERVICE',
-  'HEAVY_DUTY_WRECKER',
-] as const
-
-export type ProviderCategoryValue = typeof VALID_PROVIDER_CATEGORIES[number]
-
-/**
- * Returns the category if valid, otherwise defaults to DIESEL_MECHANIC.
- */
-export function parseProviderCategory(value: unknown): ProviderCategoryValue {
-  if (typeof value === 'string' && (VALID_PROVIDER_CATEGORIES as readonly string[]).includes(value)) {
-    return value as ProviderCategoryValue
-  }
-  return 'DIESEL_MECHANIC'
-}
+export { VALID_PROVIDER_CATEGORIES, parseProviderCategory, type ProviderCategoryValue }

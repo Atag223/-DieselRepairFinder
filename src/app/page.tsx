@@ -1,46 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import SiteNav from './components/SiteNav'
-
-type ProviderCategory = 'DIESEL_MECHANIC' | 'MOBILE_TIRE_SERVICE' | 'HEAVY_DUTY_WRECKER'
-
-const ISSUE_TYPES_BY_CATEGORY: Record<ProviderCategory, string[]> = {
-  DIESEL_MECHANIC: [
-    'No Start',
-    'Engine Problem',
-    'Electrical',
-    'DEF / Emissions',
-    'Air / Brakes',
-    'Preventive Maintenance',
-    'Other',
-  ],
-  MOBILE_TIRE_SERVICE: [
-    'Steer Tire',
-    'Drive Tire',
-    'Trailer Tire',
-    'Blowout',
-    'Flat Repair',
-    'Tire Replacement',
-    'Other',
-  ],
-  HEAVY_DUTY_WRECKER: [
-    'Semi Truck Tow',
-    'Heavy Recovery',
-    'Winching',
-    'Accident Recovery',
-    'Equipment Move',
-    'Stuck / Off Road',
-    'Other',
-  ],
-}
-
-const SERVICE_CATEGORIES: { value: ProviderCategory; label: string; icon: string; desc: string }[] = [
-  { value: 'DIESEL_MECHANIC', label: 'Diesel Mechanic', icon: '🔧', desc: 'Mobile diesel repair & maintenance' },
-  { value: 'MOBILE_TIRE_SERVICE', label: 'Mobile Tire Service', icon: '🛞', desc: 'On-site tire repair & replacement' },
-  { value: 'HEAVY_DUTY_WRECKER', label: 'Heavy-Duty Wrecker', icon: '🚨', desc: 'Heavy towing & recovery' },
-]
+import {
+  ISSUE_TYPES_BY_CATEGORY,
+  PROVIDER_CATEGORIES as SERVICE_CATEGORIES,
+  parseProviderCategoryInput,
+  type ProviderCategoryValue as ProviderCategory,
+} from '@/lib/provider-categories'
 
 const HOW_IT_WORKS = [
   {
@@ -121,6 +90,7 @@ const PAYMENT_METHODS = [
 ]
 
 export default function HomePage() {
+  const searchParams = useSearchParams()
   const [selectedCategory, setSelectedCategory] = useState<ProviderCategory>('DIESEL_MECHANIC')
   const [form, setForm] = useState<FormData>({
     requesterName: '',
@@ -145,6 +115,14 @@ export default function HomePage() {
 
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<{ success: boolean; referenceId?: string; error?: string } | null>(null)
+
+  useEffect(() => {
+    const category = parseProviderCategoryInput(searchParams.get('category'))
+    if (category && category !== selectedCategory) {
+      setSelectedCategory(category)
+      setForm((prev) => ({ ...prev, issueType: '' }))
+    }
+  }, [searchParams, selectedCategory])
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -232,14 +210,15 @@ export default function HomePage() {
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 text-balance">
             Mobile Diesel Repair,{' '}
-            <span className="text-blue-500">Tire Service</span>{' '}&{' '}
+            <span className="text-blue-500">Tire & Hydraulic Hose Service</span>{' '}&{' '}
             <br className="hidden sm:block" />
             Heavy-Duty Towing — Near You
           </h1>
 
           <p className="text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto mb-10">
-            Find verified mobile diesel mechanics, roadside tire service pros, and heavy-duty
-            wreckers anywhere in the US. Get back on the road fast — no shop, no tow required.
+            Find verified mobile diesel mechanics, roadside tire service pros, mobile hydraulic
+            hose repair providers, and heavy-duty wreckers anywhere in the US. Get back on the road
+            or back to work fast — no shop, no tow required.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -262,6 +241,8 @@ export default function HomePage() {
             <span>🔧 Diesel Mechanics</span>
             <span className="text-gray-700">|</span>
             <span>🛞 Mobile Tire Service</span>
+            <span className="text-gray-700">|</span>
+            <span>🧰 Hydraulic Hose Repair</span>
             <span className="text-gray-700">|</span>
             <span>🚨 Heavy-Duty Towing</span>
           </div>
@@ -332,7 +313,7 @@ export default function HomePage() {
                 <label className="block text-sm font-medium text-gray-300 mb-3">
                   What do you need help with? <span className="text-red-400">*</span>
                 </label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {SERVICE_CATEGORIES.map((cat) => (
                     <button
                       key={cat.value}
@@ -631,7 +612,8 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-4">Services We Cover</h2>
           <p className="text-gray-400 text-center mb-12">
-            Mobile diesel repair, tire service, and heavy-duty towing &amp; recovery
+            Mobile diesel repair, tire service, hydraulic hose repair, and heavy-duty towing &amp;
+            recovery
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {SERVICES.map((s) => (
@@ -676,9 +658,9 @@ export default function HomePage() {
             Are You a Roadside Service Provider?
           </h2>
           <p className="text-gray-300 text-lg mb-8">
-            Join our network of mobile diesel mechanics, tire service pros, and heavy-duty wreckers.
-            Set your own hours, work in your territory, and get connected with drivers who need
-            your skills — 24/7.
+            Join our network of mobile diesel mechanics, tire service pros, hydraulic hose repair
+            specialists, and heavy-duty wreckers. Set your own hours, work in your territory, and
+            get connected with drivers and equipment operators who need your skills — 24/7.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
@@ -710,7 +692,7 @@ export default function HomePage() {
             <span className="text-lg">🚛</span>
             <span className="font-semibold text-gray-400">DieselRepairFinder.com</span>
           </div>
-          <p>Mobile Diesel Repair · Tire Service · Heavy-Duty Towing</p>
+          <p>Mobile Diesel Repair · Tire Service · Hydraulic Hose Repair · Heavy-Duty Towing</p>
           <div className="flex gap-4">
             <Link href="/join" className="hover:text-gray-400 transition-colors">Join as Provider</Link>
             <a href="#request" className="hover:text-gray-400 transition-colors">Request Help</a>
