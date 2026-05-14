@@ -43,10 +43,15 @@ const CATEGORY_ARG_MAP: Record<CategoryFilter, ProviderCategory> = {
   'hydraulic-hose-repair': ProviderCategory.HYDRAULIC_HOSE_REPAIR,
 }
 
+function isCategoryFilter(value: string): value is CategoryFilter {
+  return value in CATEGORY_ARG_MAP
+}
+
 function parseArgs(): {
   state?: string
   city?: string
   category?: CategoryFilter
+  invalidCategory?: string
   maxResults: number
   delayMs: number
 } {
@@ -54,6 +59,7 @@ function parseArgs(): {
   let state: string | undefined
   let city: string | undefined
   let category: CategoryFilter | undefined
+  let invalidCategory: string | undefined
   let maxResults = 20
   let delayMs = 200
 
@@ -70,7 +76,11 @@ function parseArgs(): {
       city = nextValue
       if (consumesNext) i++
     } else if (key === '--category' && nextValue) {
-      category = nextValue as CategoryFilter
+      if (isCategoryFilter(nextValue)) {
+        category = nextValue
+      } else {
+        invalidCategory = nextValue
+      }
       if (consumesNext) i++
     } else if (key === '--max-results' && nextValue) {
       const parsed = parseInt(nextValue, 10)
@@ -87,7 +97,7 @@ function parseArgs(): {
     }
   }
 
-  return { state, city, category, maxResults, delayMs }
+  return { state, city, category, invalidCategory, maxResults, delayMs }
 }
 
 // ---------------------------------------------------------------------------
@@ -343,14 +353,21 @@ async function main() {
     process.exit(1)
   }
 
-  const { state: filterState, city: filterCity, category: categoryArg, maxResults, delayMs } = parseArgs()
+  const {
+    state: filterState,
+    city: filterCity,
+    category: categoryArg,
+    invalidCategory,
+    maxResults,
+    delayMs,
+  } = parseArgs()
 
   const selectedCategory = categoryArg ? CATEGORY_ARG_MAP[categoryArg] : undefined
 
   // Validate --category argument
-  if (categoryArg && !selectedCategory) {
+  if (invalidCategory) {
     console.error(
-      `ERROR: Unknown category "${categoryArg}". Valid values: ${Object.keys(CATEGORY_ARG_MAP).join(', ')}.`,
+      `ERROR: Unknown category "${invalidCategory}". Valid values: ${Object.keys(CATEGORY_ARG_MAP).join(', ')}.`,
     )
     process.exit(1)
   }
