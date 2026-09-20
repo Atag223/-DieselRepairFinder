@@ -26,7 +26,7 @@ export default function BrandLogo({
         height={240}
         sizes={sizes}
         priority={priority}
-        className={`h-auto ${imageWidthClassName}`}
+        className={`h-auto object-contain ${imageWidthClassName}`}
       />
     </span>
   )

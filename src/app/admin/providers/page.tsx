@@ -93,7 +93,7 @@ export default async function AdminProvidersPage({
               href="/"
               className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
             >
-              <BrandLogo alt="DieselRepairFinder.com home" priority />
+              <BrandLogo priority />
             </Link>
             <span className="text-gray-600">|</span>
             <Link href="/admin" className="text-gray-400 hover:text-white text-sm transition-colors">

@@ -46,7 +46,7 @@ export default async function AdminPage() {
             href="/"
             className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
           >
-            <BrandLogo alt="DieselRepairFinder.com home" priority />
+            <BrandLogo priority />
           </Link>
           <div className="flex items-center gap-4">
             <Link
