@@ -27,7 +27,7 @@ export default function SiteNav() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
         {/* Branding */}
         <Link href="/" className="shrink-0" aria-label="DieselRepairFinder.com home">
-          <BrandLogo alt="" priority />
+          <BrandLogo decorative priority />
         </Link>
 
         {/* Desktop links */}
