@@ -26,8 +26,9 @@ export default function SiteNav() {
     <nav className="border-b border-gray-800 bg-black/90 sticky top-0 z-50 backdrop-blur">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
         {/* Branding */}
-        <Link href="/" className="shrink-0" aria-label="DieselRepairFinder.com home">
+        <Link href="/" className="shrink-0">
           <BrandLogo alt="" priority />
+          <span className="sr-only">DieselRepairFinder.com home</span>
         </Link>
 
         {/* Desktop links */}
