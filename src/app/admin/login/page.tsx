@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import BrandLogo from '@/app/components/BrandLogo'
 
 export default function AdminLoginPage() {
   const router = useRouter()
@@ -40,11 +41,11 @@ export default function AdminLoginPage() {
     <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <span className="text-4xl">🚛</span>
-          <h1 className="text-2xl font-extrabold mt-3">
-            Diesel<span className="text-blue-500">Repair</span>Finder
-          </h1>
-          <p className="text-gray-400 text-sm mt-1">Admin Portal</p>
+          <div className="flex justify-center">
+            <BrandLogo variant="login" />
+          </div>
+          <h1 className="text-2xl font-extrabold mt-4">Admin Portal</h1>
+          <p className="text-gray-400 text-sm mt-1">Sign in to manage providers and leads.</p>
         </div>
 
         <div className="bg-gray-950 border border-gray-800 rounded-2xl p-8">
