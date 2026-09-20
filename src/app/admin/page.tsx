@@ -42,7 +42,10 @@ export default async function AdminPage() {
     <div className="min-h-screen bg-black text-white">
       <nav className="border-b border-gray-800 bg-black/90 sticky top-0 z-50 backdrop-blur">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
-          <Link href="/">
+          <Link
+            href="/"
+            className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+          >
             <BrandLogo alt="DieselRepairFinder.com home" priority />
           </Link>
           <div className="flex items-center gap-4">
