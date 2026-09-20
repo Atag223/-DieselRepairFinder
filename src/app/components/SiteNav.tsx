@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import BrandLogo from './BrandLogo'
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
@@ -25,11 +26,8 @@ export default function SiteNav() {
     <nav className="border-b border-gray-800 bg-black/90 sticky top-0 z-50 backdrop-blur">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
         {/* Branding */}
-        <Link href="/" className="flex items-center gap-2 shrink-0">
-          <span className="text-2xl">🚛</span>
-          <span className="font-bold text-lg text-white">
-            Diesel<span className="text-blue-500">Repair</span>Finder
-          </span>
+        <Link href="/" className="shrink-0" aria-label="DieselRepairFinder.com">
+          <BrandLogo priority />
         </Link>
 
         {/* Desktop links */}
@@ -66,7 +64,7 @@ export default function SiteNav() {
           </Link>
           <Link
             href="/join"
-            className={`text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${
+            className={`text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg transition-colors ${
               isActive('/join')
                 ? 'bg-blue-500 text-white'
                 : 'bg-blue-600 hover:bg-blue-700 text-white'

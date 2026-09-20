@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ClaimRequestStatus } from '@prisma/client'
 import AdminLogout from './AdminLogout'
 import { getProviderCategoryDefinition } from '@/lib/provider-categories'
+import BrandLogo from '@/app/components/BrandLogo'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,11 +42,8 @@ export default async function AdminPage() {
     <div className="min-h-screen bg-black text-white">
       <nav className="border-b border-gray-800 bg-black/90 sticky top-0 z-50 backdrop-blur">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl">🚛</span>
-            <span className="font-bold text-lg text-white">
-              Diesel<span className="text-blue-500">Repair</span>Finder
-            </span>
+          <Link href="/" aria-label="DieselRepairFinder.com">
+            <BrandLogo priority />
           </Link>
           <div className="flex items-center gap-4">
             <Link
