@@ -26,7 +26,7 @@ export default function SiteNav() {
     <nav className="border-b border-gray-800 bg-black/90 sticky top-0 z-50 backdrop-blur">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
         {/* Branding */}
-        <Link href="/" className="shrink-0" aria-label="DieselRepairFinder.com">
+        <Link href="/" className="shrink-0">
           <BrandLogo priority />
         </Link>
 
@@ -64,7 +64,7 @@ export default function SiteNav() {
           </Link>
           <Link
             href="/join"
-            className={`text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg transition-colors ${
+            className={`text-sm font-semibold px-2.5 sm:px-4 py-2 rounded-lg transition-colors ${
               isActive('/join')
                 ? 'bg-blue-500 text-white'
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
