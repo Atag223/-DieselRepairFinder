@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import SiteNav from '@/app/components/SiteNav'
+import BrandLogo from '@/app/components/BrandLogo'
 import {
   PROVIDER_CATEGORIES,
   type ProviderCategoryValue as ProviderCategory,
@@ -604,9 +605,8 @@ export default function JoinPage() {
       {/* Footer */}
       <footer className="border-t border-gray-900 py-8 px-4 mt-8">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-lg">🚛</span>
-            <span className="font-semibold text-gray-400">DieselRepairFinder.com</span>
+          <Link href="/" className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black">
+            <BrandLogo variant="footer" />
           </Link>
           <p>Mobile Diesel Repair · Tire Service · Hydraulic Hose Repair · Heavy-Duty Towing</p>
         </div>

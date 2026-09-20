@@ -2,7 +2,7 @@ import Image from 'next/image'
 
 type BrandLogoProps = {
   alt?: string
-  variant?: 'header' | 'login'
+  variant?: 'header' | 'login' | 'footer'
   priority?: boolean
 }
 
@@ -13,13 +13,22 @@ export default function BrandLogo({
 }: BrandLogoProps) {
   const imageWidthClassName =
     variant === 'login'
-      ? 'w-[240px] h-28 sm:w-[320px] sm:h-36'
-      : 'w-[170px] h-20 sm:w-[220px] sm:h-24 lg:w-[240px] lg:h-24'
-  const containerClassName = 'overflow-hidden rounded-xl bg-white'
+      ? 'w-[220px] sm:w-[280px]'
+      : variant === 'footer'
+        ? 'w-[150px] sm:w-[170px]'
+        : 'w-[170px] sm:w-[200px] lg:w-[220px]'
+  const containerClassName =
+    variant === 'login'
+      ? 'rounded-xl bg-white px-2 py-2'
+      : variant === 'footer'
+        ? 'rounded-xl bg-white px-1.5 py-1'
+        : 'rounded-xl bg-white px-1.5 py-1'
   const sizes =
     variant === 'login'
-      ? '(min-width: 640px) 320px, 240px'
-      : '(min-width: 1024px) 240px, (min-width: 640px) 220px, 170px'
+      ? '(min-width: 640px) 280px, 220px'
+      : variant === 'footer'
+        ? '(min-width: 640px) 170px, 150px'
+        : '(min-width: 1024px) 220px, (min-width: 640px) 200px, 170px'
 
   return (
     <span className={`inline-flex items-center justify-center ${containerClassName}`}>
@@ -30,7 +39,7 @@ export default function BrandLogo({
         height={1024}
         sizes={sizes}
         priority={priority}
-        className={`h-full w-full object-contain ${imageWidthClassName}`}
+        className={`h-auto object-contain ${imageWidthClassName}`}
       />
     </span>
   )

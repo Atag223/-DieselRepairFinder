@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import SiteNav from './components/SiteNav'
+import BrandLogo from './components/BrandLogo'
 import {
   ISSUE_TYPES_BY_CATEGORY,
   PROVIDER_CATEGORIES as SERVICE_CATEGORIES,
@@ -689,8 +690,7 @@ export default function HomePage() {
       <footer className="border-t border-gray-900 py-10 px-4">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600">
           <div className="flex items-center gap-2">
-            <span className="text-lg">🚛</span>
-            <span className="font-semibold text-gray-400">DieselRepairFinder.com</span>
+            <BrandLogo variant="footer" />
           </div>
           <p>Mobile Diesel Repair · Tire Service · Hydraulic Hose Repair · Heavy-Duty Towing</p>
           <div className="flex gap-4">
