@@ -20,6 +20,7 @@ export default function BrandLogo({
       <Image
         src="/diesel-repair-finder-logo.png"
         alt={alt}
+        aria-hidden={alt === ''}
         width={1040}
         height={240}
         priority={priority}
