@@ -41,6 +41,7 @@ export default async function EditProviderPage({ params }: Props) {
           <div className="flex items-center gap-4">
             <Link href="/">
               <BrandLogo priority />
+              <span className="sr-only">Home</span>
             </Link>
             <span className="text-gray-600">|</span>
             <Link href="/admin" className="text-gray-400 hover:text-white text-sm transition-colors">

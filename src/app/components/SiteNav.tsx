@@ -28,6 +28,7 @@ export default function SiteNav() {
         {/* Branding */}
         <Link href="/" className="shrink-0">
           <BrandLogo priority />
+          <span className="sr-only">Home</span>
         </Link>
 
         {/* Desktop links */}
