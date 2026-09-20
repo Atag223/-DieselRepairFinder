@@ -44,7 +44,8 @@ export default function AdminLoginPage() {
           <div className="flex justify-center">
             <BrandLogo variant="login" priority />
           </div>
-          <p className="text-gray-400 text-sm mt-1">Admin Portal</p>
+          <h1 className="text-2xl font-extrabold mt-4">Admin Portal</h1>
+          <p className="text-gray-400 text-sm mt-1">Sign in to manage providers and leads.</p>
         </div>
 
         <div className="bg-gray-950 border border-gray-800 rounded-2xl p-8">
