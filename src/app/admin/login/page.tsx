@@ -42,7 +42,7 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="flex justify-center">
-            <BrandLogo variant="login" priority />
+            <BrandLogo variant="login" />
           </div>
           <h1 className="text-2xl font-extrabold mt-4">Admin Portal</h1>
           <p className="text-gray-400 text-sm mt-1">Sign in to manage providers and leads.</p>
