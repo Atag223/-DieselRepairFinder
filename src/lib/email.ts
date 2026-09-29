@@ -7,7 +7,7 @@ function getResendClient() {
   }
   return new Resend(apiKey)
 }
-
+ 
 const FROM = process.env.FROM_EMAIL ?? 'noreply@dieselrepairfinder.com'
 const NOTIFY = process.env.NOTIFY_EMAIL ?? 'admin@dieselrepairfinder.com'
 
