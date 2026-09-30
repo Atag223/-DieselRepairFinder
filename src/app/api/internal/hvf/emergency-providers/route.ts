@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { Prisma, ProviderCategory } from "@prisma/client";
 
 // ---------------------------------------------------------------------------
 // Private / internal API – HydroVacFinder emergency provider search
@@ -14,8 +15,18 @@ import { Prisma } from "@prisma/client";
 
 const EXPECTED_API_KEY = process.env.HVF_INTERNAL_API_KEY;
 
+const VALID_CATEGORIES = new Set<string>(Object.values(ProviderCategory));
+
 function unauthorized(reason = "Missing or invalid API key") {
   return NextResponse.json({ ok: false, error: reason }, { status: 401 });
+}
+
+/** Constant-time comparison so the shared secret is not leaked by timing. */
+function apiKeysMatch(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
 }
 
 /** Haversine distance in miles between two lat/lng points. */
@@ -49,7 +60,7 @@ export async function GET(req: NextRequest) {
   }
 
   const apiKey = req.headers.get("x-hvf-api-key");
-  if (!apiKey || apiKey !== EXPECTED_API_KEY) {
+  if (!apiKey || !apiKeysMatch(apiKey, EXPECTED_API_KEY)) {
     return unauthorized();
   }
 
@@ -58,7 +69,19 @@ export async function GET(req: NextRequest) {
 
   const city = searchParams.get("city")?.trim() || undefined;
   const state = searchParams.get("state")?.trim() || undefined;
-  const category = searchParams.get("category")?.trim() || undefined;
+  const categoryParam = searchParams.get("category")?.trim().toUpperCase() || undefined;
+
+  // Reject unknown categories with a clear 400 instead of a Prisma 500.
+  if (categoryParam && !VALID_CATEGORIES.has(categoryParam)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: `Invalid category. Expected one of: ${[...VALID_CATEGORIES].join(", ")}`,
+      },
+      { status: 400 }
+    );
+  }
+  const category = categoryParam;
 
   const latParam = searchParams.get("latitude");
   const lngParam = searchParams.get("longitude");
