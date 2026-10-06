@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { Prisma, ProviderCategory } from "@prisma/client";
+import { calculateDistanceMiles, getBoundingBoxMiles } from "@/lib/distance";
 
 // ---------------------------------------------------------------------------
 // Private / internal API – HydroVacFinder emergency provider search
@@ -11,11 +12,22 @@ import { Prisma, ProviderCategory } from "@prisma/client";
 // DieselRepairFinder.com site deliberately hides until a provider accepts
 // a lead.  HydroVacFinder is a paid operational tool, so it is authorised
 // to see full provider details for project planning & emergency crew support.
+//
+// Distance ranking:
+//   When `latitude`/`longitude` are supplied the response is ranked by real
+//   distance from that origin (closest first) and filtered to `radiusMiles`
+//   (default 100). This is what lets a Mishawaka jobsite get South Bend
+//   providers instead of Indianapolis ones.
 // ---------------------------------------------------------------------------
 
 const EXPECTED_API_KEY = process.env.HVF_INTERNAL_API_KEY;
 
 const VALID_CATEGORIES = new Set<string>(Object.values(ProviderCategory));
+
+/** Upper bound on rows loaded before distance filtering. */
+const MAX_CANDIDATES = 500;
+/** Default search radius (miles) when an origin is given without a radius. */
+const DEFAULT_RADIUS_MILES = 100;
 
 function unauthorized(reason = "Missing or invalid API key") {
   return NextResponse.json({ ok: false, error: reason }, { status: 401 });
@@ -29,24 +41,35 @@ function apiKeysMatch(provided: string, expected: string): boolean {
   return timingSafeEqual(a, b);
 }
 
-/** Haversine distance in miles between two lat/lng points. */
-function haversineMiles(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number
-): number {
-  const R = 3958.8; // Earth radius in miles
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+/**
+ * Extract "<city>, <ST>" from a Google Places `formattedAddress`
+ * (e.g. "58438 Filbert Rd, Mishawaka, IN 46544, USA").
+ *
+ * Some imported rows have a `city`/`state` that disagrees with their own
+ * coordinates and formatted address (the Google Places import is authoritative).
+ * Reporting the coordinate-consistent locality keeps provider results accurate.
+ */
+function parseUsCityState(
+  formattedAddress: string | null | undefined
+): { city: string; state: string } | null {
+  if (!formattedAddress) return null;
+  const parts = formattedAddress
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length < 3) return null;
+
+  const isCountryTail = /^(usa|united states)$/i.test(parts[parts.length - 1]);
+  const stateIndex = parts.length - (isCountryTail ? 2 : 1);
+  const cityIndex = stateIndex - 1;
+  const statePart = parts[stateIndex];
+  const cityPart = parts[cityIndex];
+  if (!statePart || !cityPart) return null;
+
+  const match = statePart.match(/^([A-Za-z]{2})\b/);
+  if (!match) return null;
+
+  return { city: cityPart, state: match[1].toUpperCase() };
 }
 
 export async function GET(req: NextRequest) {
@@ -92,7 +115,11 @@ export async function GET(req: NextRequest) {
 
   const latitude = latParam ? Number.parseFloat(latParam) : undefined;
   const longitude = lngParam ? Number.parseFloat(lngParam) : undefined;
-  const radiusMiles = radiusParam ? Number.parseFloat(radiusParam) : undefined;
+  const parsedRadius = radiusParam ? Number.parseFloat(radiusParam) : undefined;
+  const effectiveRadiusMiles =
+    typeof parsedRadius === "number" && Number.isFinite(parsedRadius) && parsedRadius > 0
+      ? parsedRadius
+      : DEFAULT_RADIUS_MILES;
 
   // --- Build where clause ---------------------------------------------------
   const where: Prisma.ServiceProviderWhereInput = {
@@ -115,6 +142,41 @@ export async function GET(req: NextRequest) {
 
   // --- Query providers (with locations for distance support) -----------------
   try {
+    // --- Distance-aware candidate selection -----------------------------------
+    //
+    // When an origin (latitude/longitude) is supplied the caller expects
+    // providers RANKED BY REAL DISTANCE. We must therefore NOT let `take`
+    // truncate the candidate set before distances are computed — doing that
+    // previously returned the first N providers in tier/name order (e.g.
+    // Indianapolis) instead of the closest ones (e.g. South Bend).
+    //
+    // So: pre-filter with a bounding box for the requested radius, load up to
+    // MAX_CANDIDATES rows, compute Haversine, then filter + sort + limit.
+    const hasOrigin =
+      typeof latitude === "number" &&
+      Number.isFinite(latitude) &&
+      typeof longitude === "number" &&
+      Number.isFinite(longitude);
+
+    if (hasOrigin) {
+      const bbox = getBoundingBoxMiles(
+        latitude as number,
+        longitude as number,
+        effectiveRadiusMiles
+      );
+      const latRange = { gte: bbox.minLat, lte: bbox.maxLat };
+      const lngRange = { gte: bbox.minLng, lte: bbox.maxLng };
+
+      where.OR = [
+        { latitude: latRange, longitude: lngRange },
+        {
+          locations: {
+            some: { active: true, latitude: latRange, longitude: lngRange },
+          },
+        },
+      ];
+    }
+
     const providers = await prisma.serviceProvider.findMany({
       where,
       include: {
@@ -122,101 +184,142 @@ export async function GET(req: NextRequest) {
           where: { active: true },
           select: {
             id: true,
+            locationName: true,
+            address: true,
             city: true,
             state: true,
+            zip: true,
+            phone: true,
+            serviceRadius: true,
+            isPrimary: true,
             latitude: true,
             longitude: true,
-            locationName: true,
           },
         },
       },
-      take: limit,
+      take: hasOrigin ? MAX_CANDIDATES : limit,
       orderBy: [{ tier: "desc" }, { rating: "desc" }, { businessName: "asc" }],
     });
 
-    // --- Map & optionally filter by distance -----------------------------------
-    const results = providers
-      .map((p) => {
-        let distanceMiles: number | null = null;
+    // --- Map ------------------------------------------------------------------
+    const mapped = providers.map((p) => {
+      let distanceMiles: number | null = null;
+      let nearestLocation: (typeof p.locations)[number] | null = null;
+      let nearestIsMainCoords = false;
 
-        // If caller provided a search origin + radius, compute the best
-        // (shortest) distance across the provider's main coords + any active
-        // location coordinates.
-        if (
-          typeof latitude === "number" &&
-          typeof longitude === "number" &&
-          !Number.isNaN(latitude) &&
-          !Number.isNaN(longitude)
-        ) {
-          const candidates: number[] = [];
+      if (hasOrigin) {
+        const originLat = latitude as number;
+        const originLng = longitude as number;
 
+        // The provider's own coordinates (usually the registered address).
+        if (typeof p.latitude === "number" && typeof p.longitude === "number") {
+          distanceMiles =
+            Math.round(
+              calculateDistanceMiles(originLat, originLng, p.latitude, p.longitude) * 10
+            ) / 10;
+          nearestIsMainCoords = true;
+        }
+
+        // Any active branch location that is closer wins — that is the depot
+        // the provider would actually dispatch from.
+        for (const loc of p.locations) {
           if (
-            typeof p.latitude === "number" &&
-            typeof p.longitude === "number"
+            typeof loc.latitude !== "number" ||
+            typeof loc.longitude !== "number"
           ) {
-            candidates.push(haversineMiles(latitude, longitude, p.latitude, p.longitude));
+            continue;
           }
+          const d =
+            Math.round(
+              calculateDistanceMiles(originLat, originLng, loc.latitude, loc.longitude) * 10
+            ) / 10;
 
-          for (const loc of p.locations) {
-            if (
-              typeof loc.latitude === "number" &&
-              typeof loc.longitude === "number"
-            ) {
-              candidates.push(
-                haversineMiles(latitude, longitude, loc.latitude, loc.longitude)
-              );
+          if (distanceMiles === null || d < distanceMiles) {
+            distanceMiles = d;
+            nearestLocation = loc;
+            nearestIsMainCoords = false;
+          }
+        }
+      }
+
+      // A branch location is the most precise signal; otherwise trust the
+      // Google Places formatted address, which always matches the coordinates.
+      const parsed = parseUsCityState(p.formattedAddress);
+      const city = nearestLocation?.city ?? parsed?.city ?? p.city;
+      const state = nearestLocation?.state ?? parsed?.state ?? p.state;
+      const storedCityMismatch =
+        !nearestLocation &&
+        Boolean(parsed) &&
+        (parsed?.city !== p.city || parsed?.state !== p.state);
+
+      return {
+        id: p.id,
+        name: p.businessName,
+        category: p.providerCategory,
+        city,
+        state,
+        address: nearestLocation?.address ?? p.formattedAddress ?? null,
+        primaryCity: p.city,
+        primaryState: p.state,
+        /** True when the stored city/state disagrees with the coordinates. */
+        locationMismatch: storedCityMismatch,
+        phone: p.phone ?? nearestLocation?.phone ?? null,
+        email: p.email,
+        website: p.website,
+        services: p.services,
+        is24_7: p.is24_7,
+        tier: p.tier,
+        verificationStatus: p.verificationStatus,
+        rating: p.rating,
+        distanceMiles,
+        distanceFromMainAddress: nearestIsMainCoords,
+        nearestLocation: nearestLocation
+          ? {
+              id: nearestLocation.id,
+              locationName: nearestLocation.locationName,
+              address: nearestLocation.address,
+              city: nearestLocation.city,
+              state: nearestLocation.state,
+              zip: nearestLocation.zip,
+              phone: nearestLocation.phone,
+              serviceRadius: nearestLocation.serviceRadius,
+              isPrimary: nearestLocation.isPrimary,
             }
+          : null,
+        source: "DieselRepairFinder.com" as const,
+      };
+    });
+
+    // --- Filter / sort / limit ------------------------------------------------
+    let results = mapped;
+
+    if (hasOrigin) {
+      // Only providers we can actually locate, inside the requested radius.
+      results = mapped
+        .filter(
+          (item): item is typeof item & { distanceMiles: number } =>
+            item.distanceMiles !== null && item.distanceMiles <= effectiveRadiusMiles
+        )
+        .sort((a, b) => {
+          if (a.distanceMiles !== b.distanceMiles) {
+            return a.distanceMiles - b.distanceMiles;
           }
-
-          if (candidates.length > 0) {
-            distanceMiles = Math.min(...candidates);
-            // Round to 1 decimal place
-            distanceMiles = Math.round(distanceMiles * 10) / 10;
-          }
-        }
-
-        // If radius is specified and we have a distance, exclude providers
-        // outside the radius.
-        if (
-          typeof radiusMiles === "number" &&
-          distanceMiles !== null &&
-          distanceMiles > radiusMiles
-        ) {
-          return null; // filtered out
-        }
-
-        return {
-          id: p.id,
-          name: p.businessName,
-          category: p.providerCategory,
-          city: p.city,
-          state: p.state,
-          phone: p.phone,
-          email: p.email,
-          website: p.website,
-          services: p.services,
-          is24_7: p.is24_7,
-          tier: p.tier,
-          verificationStatus: p.verificationStatus,
-          rating: p.rating,
-          distanceMiles,
-          source: "DieselRepairFinder.com" as const,
-        };
-      })
-      .filter((item): item is NonNullable<typeof item> => item !== null);
-
-    // Sort by distance if origin was provided, otherwise preserve DB order
-    if (typeof latitude === "number" && typeof longitude === "number") {
-      results.sort((a, b) => (a.distanceMiles ?? 9999) - (b.distanceMiles ?? 9999));
+          return a.name.localeCompare(b.name);
+        });
     }
+
+    const limited = results.slice(0, limit);
 
     return NextResponse.json(
       {
         ok: true,
-        providers: results,
+        providers: limited,
         meta: {
-          total: results.length,
-          filters: { city, state, category, latitude, longitude, radiusMiles },
+          total: limited.length,
+          distanceRanked: hasOrigin,
+          radiusMilesUsed: hasOrigin ? effectiveRadiusMiles : null,
+          candidatesConsidered: providers.length,
+          filters: { city, state, category, latitude, longitude, radiusMiles: parsedRadius ?? null },
         },
       },
       { status: 200 }
