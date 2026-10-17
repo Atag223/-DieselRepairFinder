@@ -106,6 +106,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       },
     ],
     metadata: {
+      purchaseType: 'lead_credits',
       providerId: provider.id,
       packageKey: pkg.key,
     },

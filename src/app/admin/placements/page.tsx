@@ -28,10 +28,17 @@ export default async function AdminPlacementsPage() {
                 <div>
                   <h2 className="text-lg font-semibold">{placement.tier} · {placement.state} · {placement.tier === 'FEATURED' ? '$1,250/year' : '$1,500/year'}</h2>
                   <p className="text-sm text-gray-300">{placement.provider.businessName} · {placement.provider.email}</p>
-                  <p className="text-sm text-gray-400">Status: {placement.status} · Payment: {placement.paymentStatus}</p>
+                  <p className="text-sm text-gray-400">
+                    Status: {placement.status} · Payment: {placement.paymentStatus}
+                    {placement.amountCents ? ` · $${(placement.amountCents / 100).toLocaleString()}` : ''}
+                  </p>
                   <p className="text-xs text-gray-500">Requested {placement.requestedAt.toLocaleString()}{placement.expiresAt ? ` · Expires ${placement.expiresAt.toLocaleDateString()}` : ''}</p>
                 </div>
-                <PlacementActions id={placement.id} status={placement.status} />
+                <PlacementActions
+                  id={placement.id}
+                  status={placement.status}
+                  stripeCheckoutSessionId={placement.stripeCheckoutSessionId}
+                />
               </div>
             </article>
           ))}

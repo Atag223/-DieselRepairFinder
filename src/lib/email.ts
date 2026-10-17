@@ -125,8 +125,8 @@ export async function sendPlacementRequestEmail(data: {
     await resend.emails.send({
       from: FROM,
       to: NOTIFY,
-      subject: `[DieselRepairFinder] ${data.tier} placement request for ${data.state}`,
-      html: `<h2>State placement request</h2><p><strong>Business:</strong> ${escapeHtml(data.businessName)}</p><p><strong>Provider email:</strong> ${escapeHtml(data.providerEmail)}</p><p><strong>Placement:</strong> ${escapeHtml(data.tier)} in ${escapeHtml(data.state)}</p><p><strong>Annual price:</strong> ${annualPrice}</p><p>Review the request in the <a href="${escapeHtml(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')}/admin/placements">admin placement queue</a>. The placement is not active until approval and payment confirmation.</p>`,
+      subject: `[DieselRepairFinder] ${data.tier} placement checkout started for ${data.state}`,
+      html: `<h2>State placement checkout started</h2><p><strong>Business:</strong> ${escapeHtml(data.businessName)}</p><p><strong>Provider email:</strong> ${escapeHtml(data.providerEmail)}</p><p><strong>Placement:</strong> ${escapeHtml(data.tier)} in ${escapeHtml(data.state)}</p><p><strong>Annual price:</strong> ${annualPrice}</p><p>The provider is completing one-time Stripe Checkout. The placement will activate for 12 months only after Stripe verifies payment. Review the <a href="${escapeHtml(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')}/admin/placements">admin placement queue</a>.</p>`,
     })
   } catch (error) {
     console.error('Failed to send placement request notification:', error)

@@ -1,7 +1,132 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { prisma } from '@/lib/prisma'
-import { BILLING_PACKAGES } from '@/lib/billing'
+import { BILLING_PACKAGES, PLACEMENT_PRICES_CENTS } from '@/lib/billing'
+
+async function completePlacementCheckout(session: Stripe.Checkout.Session) {
+  const providerId = session.metadata?.providerId
+  const placementId = session.metadata?.placementId
+  const state = session.metadata?.state
+  const tier = session.metadata?.tier
+  const stripeCustomerId =
+    typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null
+
+  if (
+    !providerId ||
+    !placementId ||
+    !state ||
+    (tier !== 'FEATURED' && tier !== 'PREMIUM') ||
+    session.mode !== 'payment' ||
+    session.client_reference_id !== providerId ||
+    session.currency !== 'usd' ||
+    session.amount_total !== PLACEMENT_PRICES_CENTS[tier] ||
+    session.payment_status !== 'paid'
+  ) {
+    throw new Error('Invalid or unpaid placement checkout session')
+  }
+
+  return prisma.$transaction(async (transaction) => {
+    const placement = await transaction.listingPlacement.findUnique({
+      where: { id: placementId },
+      select: {
+        id: true,
+        providerId: true,
+        state: true,
+        tier: true,
+        status: true,
+        paymentStatus: true,
+        amountCents: true,
+        stripeCheckoutSessionId: true,
+        checkoutExpiresAt: true,
+        provider: { select: { stripeCustomerId: true } },
+      },
+    })
+    if (
+      !placement ||
+      placement.providerId !== providerId ||
+      placement.state !== state ||
+      placement.tier !== tier ||
+      placement.amountCents !== session.amount_total ||
+      placement.stripeCheckoutSessionId !== session.id ||
+      placement.provider.stripeCustomerId !== stripeCustomerId
+    ) {
+      throw new Error('Placement checkout does not match its provider or reservation')
+    }
+    if (placement.status === 'ACTIVE' && placement.paymentStatus === 'PAID') {
+      return { duplicate: true }
+    }
+    if (
+      placement.status !== 'REQUESTED' ||
+      placement.paymentStatus !== 'PENDING' ||
+      !placement.checkoutExpiresAt ||
+      placement.checkoutExpiresAt <= new Date()
+    ) {
+      throw new Error('Placement reservation has expired or is no longer available')
+    }
+
+    const now = new Date()
+    await transaction.listingPlacement.updateMany({
+      where: {
+        state,
+        tier,
+        id: { not: placementId },
+        OR: [
+          { status: 'ACTIVE', expiresAt: { lte: now } },
+          { status: 'REQUESTED', paymentStatus: 'PENDING', checkoutExpiresAt: { lte: now } },
+        ],
+      },
+      data: { status: 'EXPIRED' },
+    })
+    const conflict = await transaction.listingPlacement.findFirst({
+      where: {
+        state,
+        tier,
+        id: { not: placementId },
+        OR: [
+          { status: 'APPROVED' },
+          { status: 'ACTIVE', OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+          { status: 'REQUESTED', OR: [{ checkoutExpiresAt: null }, { checkoutExpiresAt: { gt: now } }] },
+        ],
+      },
+      select: { id: true },
+    })
+    if (conflict) throw new Error('Placement is no longer available')
+
+    const startsAt = now
+    const expiresAt = new Date(startsAt)
+    expiresAt.setFullYear(expiresAt.getFullYear() + 1)
+    const activated = await transaction.listingPlacement.updateMany({
+      where: {
+        id: placementId,
+        providerId,
+        state,
+        tier,
+        status: 'REQUESTED',
+        paymentStatus: 'PENDING',
+        stripeCheckoutSessionId: session.id,
+        checkoutExpiresAt: { gt: now },
+      },
+      data: {
+        status: 'ACTIVE',
+        paymentStatus: 'PAID',
+        paidAt: startsAt,
+        startsAt,
+        expiresAt,
+      },
+    })
+    if (activated.count !== 1) {
+      const current = await transaction.listingPlacement.findUnique({
+        where: { id: placementId },
+        select: { status: true, paymentStatus: true },
+      })
+      if (current?.status === 'ACTIVE' && current.paymentStatus === 'PAID') {
+        return { duplicate: true }
+      }
+      throw new Error('Placement activation was not completed')
+    }
+    return { duplicate: false }
+  })
+}
 
 export async function POST(request: NextRequest) {
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY
@@ -32,6 +157,25 @@ export async function POST(request: NextRequest) {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session
 
+    if (session.metadata?.purchaseType === 'placement') {
+      try {
+        const result = await completePlacementCheckout(session)
+        console.log('[stripe/webhook] Placement checkout processed', {
+          sessionId: session.id,
+          placementId: session.metadata.placementId,
+          ...result,
+        })
+      } catch (err) {
+        console.error('[stripe/webhook] Failed to activate placement', {
+          sessionId: session.id,
+          placementId: session.metadata.placementId,
+          err,
+        })
+        return NextResponse.json({ error: 'Failed to activate placement' }, { status: 500 })
+      }
+      return NextResponse.json({ received: true })
+    }
+
     const providerId = session.metadata?.providerId
     const packageKey = session.metadata?.packageKey
     const pkg = BILLING_PACKAGES.find((item) => item.key === packageKey)
@@ -45,6 +189,8 @@ export async function POST(request: NextRequest) {
     if (
       !providerId ||
       !pkg ||
+      (session.metadata?.purchaseType && session.metadata.purchaseType !== 'lead_credits') ||
+      session.mode !== 'payment' ||
       session.client_reference_id !== providerId ||
       session.currency !== 'usd' ||
       session.amount_total !== pkg.amountCents ||
@@ -131,6 +277,22 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.error('[stripe/webhook] Failed to add credits', { providerId, sessionId: session.id, err })
       return NextResponse.json({ error: 'Failed to add credits' }, { status: 500 })
+    }
+  }
+
+  if (event.type === 'checkout.session.expired') {
+    const session = event.data.object as Stripe.Checkout.Session
+    const placementId = session.metadata?.placementId
+    if (session.metadata?.purchaseType === 'placement' && placementId) {
+      await prisma.listingPlacement.updateMany({
+        where: {
+          id: placementId,
+          stripeCheckoutSessionId: session.id,
+          status: 'REQUESTED',
+          paymentStatus: 'PENDING',
+        },
+        data: { status: 'EXPIRED' },
+      })
     }
   }
 

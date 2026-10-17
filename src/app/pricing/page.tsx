@@ -190,7 +190,7 @@ export default function PricingPage() {
               </ul>
               <div className="text-2xl font-extrabold text-blue-400">$1,250<span className="text-base font-medium text-gray-500">/year</span></div>
               <Link href="/providers/login" className="mt-4 rounded-lg bg-blue-700 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-blue-600">
-                Request Featured Placement
+                Purchase Featured Placement
               </Link>
             </div>
 
@@ -224,7 +224,7 @@ export default function PricingPage() {
               </ul>
               <div className="text-2xl font-extrabold text-yellow-400">$1,500<span className="text-base font-medium text-gray-500">/year</span></div>
               <Link href="/providers/login" className="mt-4 rounded-lg bg-yellow-700 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-yellow-600">
-                Request Premium Placement
+                Purchase Premium Placement
               </Link>
             </div>
           </div>

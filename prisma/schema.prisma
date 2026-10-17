@@ -220,6 +220,9 @@ model ListingPlacement {
   paidAt        DateTime?
   startsAt      DateTime?
   expiresAt     DateTime?
+  amountCents   Int?
+  stripeCheckoutSessionId String? @unique
+  checkoutExpiresAt DateTime?
   provider      ServiceProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
   @@index([providerId, status])

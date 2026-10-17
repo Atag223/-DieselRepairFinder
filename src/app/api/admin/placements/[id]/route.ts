@@ -22,6 +22,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     include: { provider: { select: { id: true, email: true, businessName: true } } },
   })
   if (!placement) return NextResponse.json({ error: 'Placement request not found.' }, { status: 404 })
+  if (placement.stripeCheckoutSessionId) {
+    return NextResponse.json({ error: 'Stripe Checkout placements are activated only by verified webhook payment.' }, { status: 409 })
+  }
 
   if (action === 'approve' && placement.status === 'REQUESTED') {
     const result = await prisma.listingPlacement.updateMany({

@@ -47,8 +47,15 @@ export default function PlacementRequestForm({ providerId }: { providerId: strin
         body: JSON.stringify({ providerId, state, tier }),
       })
       const result = await response.json()
-      setMessage(result.message ?? result.error ?? 'Unable to submit request.')
-      if (response.ok) setAvailable(false)
+      if (!response.ok) {
+        setMessage(result.error ?? 'Unable to start checkout.')
+        return
+      }
+      if (result.url) {
+        window.location.assign(result.url)
+      } else {
+        setMessage('Stripe did not return a checkout URL. Please try again.')
+      }
     } catch {
       setMessage('Network error. Please try again.')
     } finally {
@@ -60,8 +67,8 @@ export default function PlacementRequestForm({ providerId }: { providerId: strin
   return (
     <div className="space-y-5">
       <p className="text-sm text-gray-400">
-        Request an annual advertising placement. Administration will confirm availability, approve
-        the request, and arrange payment. It stays inactive until both approval and payment are confirmed.
+        Buy a one-time annual advertising placement through Stripe Checkout. Your placement activates
+        for 12 months only after Stripe confirms payment. This purchase does not include lead credits.
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         {(['FEATURED', 'PREMIUM'] as const).map((option) => (
@@ -98,7 +105,7 @@ export default function PlacementRequestForm({ providerId }: { providerId: strin
         disabled={!available || loading}
         className="w-full rounded-lg bg-blue-600 px-5 py-3 font-semibold disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {loading ? 'Sending request…' : `Request ${tier === 'FEATURED' ? 'Featured' : 'Premium'} Placement — ${price}`}
+        {loading ? 'Redirecting to Stripe…' : `Purchase ${tier === 'FEATURED' ? 'Featured' : 'Premium'} Placement — ${price}`}
       </button>
       {message && <p role="status" className="text-sm text-gray-300">{message}</p>}
     </div>

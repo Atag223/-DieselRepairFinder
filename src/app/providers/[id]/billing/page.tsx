@@ -100,7 +100,7 @@ export default async function ProviderBillingPage({ params, searchParams }: Prop
             Annual featured and premium state advertising is separate from lead credits.
           </p>
           <Link href={`/providers/${provider.id}/placements`} className="inline-block rounded-lg bg-blue-600 px-5 py-3 font-semibold">
-            Request a State Placement
+            Purchase a Featured or Premium State Placement
           </Link>
           {provider.placements.length > 0 && (
             <div className="mt-5 space-y-3">
