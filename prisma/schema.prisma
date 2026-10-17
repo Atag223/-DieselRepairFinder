@@ -124,6 +124,7 @@ model ServiceProvider {
   state         String
   serviceRadius Int?
   website       String?
+  description   String?
   is24_7        Boolean          @default(false)
   services      String[]
   notes         String?
@@ -140,6 +141,7 @@ model ServiceProvider {
   // Credit-based billing fields
   leadCredits              Int      @default(0)
   freeLeadCreditsIssued    Boolean  @default(false)
+  promotionalBonusUsed     Boolean  @default(false)
   stripeCustomerId         String?
   stripeAccountBalanceCents Int     @default(0)
   billingStatus            String?
@@ -190,6 +192,10 @@ model Lead {
   status           LeadStatus @default(SENT)
   charged          Boolean    @default(false)
   price            Float      @default(25)
+  acceptanceTokenHash String?  @unique
+  acceptanceTokenExpiresAt DateTime?
+  acceptedAt       DateTime?
+  acceptedServiceRequestProviderId String? @unique
 
   providerLocationId  String?
   distanceMiles       Float?
@@ -238,6 +244,7 @@ model ProviderPayment {
   createdAt             DateTime        @default(now())
   providerId            String
   stripePaymentIntentId String?
+  stripeCheckoutSessionId String? @unique
   amountCents           Int
   creditsPurchased      Int
   status                String

@@ -5,6 +5,7 @@ import { ProviderCategory, ProviderTier, VerificationStatus } from '@prisma/clie
 import ProviderCard, { ProviderCardData } from './ProviderCard'
 import FilterBar from './FilterBar'
 import SiteNav from '@/app/components/SiteNav'
+import { toPublicProvider } from '@/lib/public-providers'
 import {
   getProviderCategoryDefinition,
   parseProviderCategoryInput,
@@ -19,7 +20,7 @@ export const metadata = {
     'Browse verified mobile diesel mechanics, mobile tire service providers, hydraulic hose repair companies, and heavy-duty tow trucks near you. Find roadside and job-site help 24/7.',
 }
 
-// Sort providers: verified first, then by tier, then rating/reviews, then has phone, then recently updated
+// Sort providers: verified first, then by tier and rating/reviews.
 function sortProviders(providers: ProviderCardData[]): ProviderCardData[] {
   const tierOrder: Record<ProviderTier, number> = { PREMIUM: 0, FEATURED: 1, FREE: 2 }
   return [...providers].sort((a, b) => {
@@ -33,10 +34,6 @@ function sortProviders(providers: ProviderCardData[]): ProviderCardData[] {
     const aScore = (a.rating ?? 0) + (a.reviewCount ?? 0) * 0.1
     const bScore = (b.rating ?? 0) + (b.reviewCount ?? 0) * 0.1
     if (aScore !== bScore) return bScore - aScore
-    // 4. Has phone
-    const aPhone = a.phone ? 0 : 1
-    const bPhone = b.phone ? 0 : 1
-    if (aPhone !== bPhone) return aPhone - bPhone
     return 0
   })
 }
@@ -54,9 +51,16 @@ async function getProviders(state: string, city: string, category: string) {
       id: true,
       businessName: true,
       phone: true,
+      email: true,
       website: true,
+      description: true,
       city: true,
       state: true,
+      serviceRadius: true,
+      locations: {
+        where: { active: true },
+        select: { city: true, state: true, serviceRadius: true },
+      },
       services: true,
       providerCategory: true,
       tier: true,
@@ -70,7 +74,7 @@ async function getProviders(state: string, city: string, category: string) {
     take: 200,
   })
 
-  return sortProviders(rows as ProviderCardData[])
+  return sortProviders(rows.map(toPublicProvider) as ProviderCardData[])
 }
 
 async function getCitiesForState(state: string): Promise<string[]> {

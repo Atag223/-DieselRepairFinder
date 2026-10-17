@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { prisma } from '@/lib/prisma'
+import { BILLING_PACKAGES } from '@/lib/billing'
 
 export async function POST(request: NextRequest) {
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY
@@ -32,29 +33,31 @@ export async function POST(request: NextRequest) {
     const session = event.data.object as Stripe.Checkout.Session
 
     const providerId = session.metadata?.providerId
-    const awardedCredits = session.metadata?.awardedCredits
-      ? Number(session.metadata.awardedCredits)
-      : null
-    const paidCredits = session.metadata?.paidCredits
-      ? Number(session.metadata.paidCredits)
-      : null
-    const bonusCredits = session.metadata?.bonusCredits
-      ? Number(session.metadata.bonusCredits)
-      : 0
-    const amountCents = session.metadata?.amountCents
-      ? Number(session.metadata.amountCents)
-      : null
+    const packageKey = session.metadata?.packageKey
+    const pkg = BILLING_PACKAGES.find((item) => item.key === packageKey)
     const paymentIntentId =
       typeof session.payment_intent === 'string'
         ? session.payment_intent
         : session.payment_intent?.id ?? null
+    const stripeCustomerId =
+      typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null
 
-    if (!providerId || !awardedCredits || !amountCents || !paidCredits) {
+    if (
+      !providerId ||
+      !pkg ||
+      session.client_reference_id !== providerId ||
+      session.currency !== 'usd' ||
+      session.amount_total !== pkg.amountCents ||
+      session.payment_status !== 'paid'
+    ) {
       console.error('[stripe/webhook] Missing metadata on checkout session', {
         sessionId: session.id,
-        metadata: session.metadata,
+        providerId,
+        packageKey,
+        amountTotal: session.amount_total,
+        paymentStatus: session.payment_status,
       })
-      return NextResponse.json({ error: 'Missing metadata' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid or unpaid checkout session' }, { status: 400 })
     }
 
     const provider = await prisma.serviceProvider.findUnique({
@@ -67,50 +70,63 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Provider not found' }, { status: 404 })
     }
 
-    // Build a human-readable note describing the purchase
-    const bonusDesc =
-      bonusCredits > 0
-        ? ` + ${bonusCredits} bonus credit${bonusCredits > 1 ? 's' : ''}`
-        : ''
-    const transactionNote = `Purchased ${paidCredits} leads${bonusDesc}`
-
     try {
-      await prisma.$transaction([
-        prisma.providerPayment.create({
+      const result = await prisma.$transaction(async (transaction) => {
+        const existingPayment = await transaction.providerPayment.findUnique({
+          where: { stripeCheckoutSessionId: session.id },
+          select: { id: true },
+        })
+        if (existingPayment) return { duplicate: true, awardedCredits: 0, bonusCredits: 0 }
+
+        const currentProvider = await transaction.serviceProvider.findUnique({
+          where: { id: providerId },
+          select: { promotionalBonusUsed: true, stripeCustomerId: true },
+        })
+        if (!currentProvider || currentProvider.stripeCustomerId !== stripeCustomerId) {
+          throw new Error('Checkout customer does not match provider')
+        }
+
+        const bonusCredits = currentProvider.promotionalBonusUsed ? 0 : pkg.bonusCredits
+        const awardedCredits = pkg.paidCredits + bonusCredits
+        const bonusDesc = bonusCredits > 0 ? ` + ${bonusCredits} promotional bonus credits` : ''
+
+        await transaction.providerPayment.create({
           data: {
             providerId,
             stripePaymentIntentId: paymentIntentId,
-            amountCents,
+            stripeCheckoutSessionId: session.id,
+            amountCents: pkg.amountCents,
             creditsPurchased: awardedCredits,
             status: 'COMPLETED',
           },
-        }),
-        prisma.serviceProvider.update({
+        })
+        await transaction.serviceProvider.update({
           where: { id: providerId },
           data: {
             leadCredits: { increment: awardedCredits },
+            ...(bonusCredits > 0 ? { promotionalBonusUsed: true } : {}),
           },
-        }),
-        prisma.leadCreditTransaction.create({
+        })
+        await transaction.leadCreditTransaction.create({
           data: {
             providerId,
             amount: awardedCredits,
             type: 'STRIPE_PURCHASE',
-            note: transactionNote,
+            note: `Purchased ${pkg.paidCredits} credits${bonusDesc}`,
             stripePaymentIntentId: paymentIntentId,
           },
-        }),
-      ])
+        })
+        return { duplicate: false, awardedCredits, bonusCredits }
+      })
 
       console.log('[stripe/webhook] Credits added', {
         providerId,
-        paidCredits,
-        awardedCredits,
-        bonusCredits,
-        amountCents,
+        sessionId: session.id,
+        ...result,
+        amountCents: pkg.amountCents,
       })
     } catch (err) {
-      console.error('[stripe/webhook] Failed to add credits', { providerId, awardedCredits, err })
+      console.error('[stripe/webhook] Failed to add credits', { providerId, sessionId: session.id, err })
       return NextResponse.json({ error: 'Failed to add credits' }, { status: 500 })
     }
   }

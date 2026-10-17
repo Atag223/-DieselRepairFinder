@@ -3,15 +3,14 @@ import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { Prisma, ProviderCategory } from "@prisma/client";
 import { calculateDistanceMiles, getBoundingBoxMiles } from "@/lib/distance";
+import { redactContactDetails } from "@/lib/public-providers";
 
 // ---------------------------------------------------------------------------
 // Private / internal API – HydroVacFinder emergency provider search
 // ---------------------------------------------------------------------------
 // This endpoint is NOT public. It requires a valid x-hvf-api-key header.
-// It returns provider contact info (phone / email / website) that the public
-// DieselRepairFinder.com site deliberately hides until a provider accepts
-// a lead.  HydroVacFinder is a paid operational tool, so it is authorised
-// to see full provider details for project planning & emergency crew support.
+// It returns provider discovery details only. Customer requests must be submitted
+// through DieselRepairFinder so providers can accept them and pay with lead credits.
 //
 // Distance ranking:
 //   When `latitude`/`longitude` are supplied the response is ranked by real
@@ -127,6 +126,8 @@ export async function GET(req: NextRequest) {
     active: true,
     deletedAt: null,
     suspendedAt: null,
+    leadCredits: { gt: 0 },
+    email: { not: null },
   };
 
   if (state) {
@@ -189,7 +190,6 @@ export async function GET(req: NextRequest) {
             city: true,
             state: true,
             zip: true,
-            phone: true,
             serviceRadius: true,
             isPrimary: true,
             latitude: true,
@@ -254,7 +254,7 @@ export async function GET(req: NextRequest) {
 
       return {
         id: p.id,
-        name: p.businessName,
+        name: redactContactDetails(p.businessName),
         category: p.providerCategory,
         city,
         state,
@@ -263,10 +263,7 @@ export async function GET(req: NextRequest) {
         primaryState: p.state,
         /** True when the stored city/state disagrees with the coordinates. */
         locationMismatch: storedCityMismatch,
-        phone: p.phone ?? nearestLocation?.phone ?? null,
-        email: p.email,
-        website: p.website,
-        services: p.services,
+        services: p.services.map(redactContactDetails),
         is24_7: p.is24_7,
         tier: p.tier,
         verificationStatus: p.verificationStatus,
@@ -281,12 +278,12 @@ export async function GET(req: NextRequest) {
               city: nearestLocation.city,
               state: nearestLocation.state,
               zip: nearestLocation.zip,
-              phone: nearestLocation.phone,
               serviceRadius: nearestLocation.serviceRadius,
               isPrimary: nearestLocation.isPrimary,
             }
           : null,
         source: "DieselRepairFinder.com" as const,
+        serviceRequestUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://dieselrepairfinder.com"}/?category=${encodeURIComponent(p.providerCategory)}#request`,
       };
     });
 

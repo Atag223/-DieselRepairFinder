@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { ProviderTier } from '@prisma/client'
 import ProviderCard, { ProviderCardData } from '@/app/providers/ProviderCard'
 import SiteNav from '@/app/components/SiteNav'
+import { toPublicProvider } from '@/lib/public-providers'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,9 +32,7 @@ function sortProviders(providers: ProviderCardData[]): ProviderCardData[] {
     const aScore = (a.rating ?? 0) + (a.reviewCount ?? 0) * 0.1
     const bScore = (b.rating ?? 0) + (b.reviewCount ?? 0) * 0.1
     if (aScore !== bScore) return bScore - aScore
-    const aPhone = a.phone ? 0 : 1
-    const bPhone = b.phone ? 0 : 1
-    return aPhone - bPhone
+    return 0
   })
 }
 
@@ -65,14 +64,16 @@ export default async function HydraulicHoseRepairStatePage({ params }: Props) {
       OR: [{ state }, { locations: { some: { state, active: true } } }],
     },
     select: {
-      id: true, businessName: true, phone: true, website: true, city: true, state: true,
+      id: true, businessName: true, phone: true, email: true, website: true, description: true, city: true, state: true,
+      serviceRadius: true,
+      locations: { where: { active: true }, select: { city: true, state: true, serviceRadius: true } },
       services: true, providerCategory: true, tier: true, verificationStatus: true,
       isVerified: true, rating: true, reviewCount: true, claimStatus: true, is24_7: true,
     },
     take: 300,
   })
 
-  const providers = sortProviders(rows as ProviderCardData[])
+  const providers = sortProviders(rows.map(toPublicProvider) as ProviderCardData[])
   const cities = [...new Set(providers.map((p) => p.city))].sort()
 
   return (

@@ -21,8 +21,7 @@ export default async function ProviderBillingPage({ params, searchParams }: Prop
       id: true,
       businessName: true,
       leadCredits: true,
-      stripeAccountBalanceCents: true,
-      freeLeadCreditsIssued: true,
+      promotionalBonusUsed: true,
       deletedAt: true,
     },
   })
@@ -54,8 +53,7 @@ export default async function ProviderBillingPage({ params, searchParams }: Prop
         <BillingForm
           providerId={provider.id}
           leadCredits={provider.leadCredits}
-          stripeAccountBalanceCents={provider.stripeAccountBalanceCents}
-          freeLeadCreditsIssued={provider.freeLeadCreditsIssued}
+          promotionalBonusUsed={provider.promotionalBonusUsed}
         />
 
         <div className="mt-6 text-center">

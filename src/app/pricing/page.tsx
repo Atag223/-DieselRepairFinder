@@ -11,12 +11,13 @@ export default function PricingPage() {
         {/* Hero */}
         <div className="text-center mb-14">
           <h1 className="text-4xl sm:text-5xl font-extrabold mb-4">
-            Free to list.{' '}
-            <span className="text-blue-400">Pay only for accepted leads.</span>
+            Free to List.{' '}
+            <span className="text-blue-400">Pay Only for Accepted Leads.</span>
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-            No monthly fees. No signup fee. Get listed on DieselRepairFinder today and only pay
-            when you accept a qualified job request.
+            Create your free company listing and become discoverable by contractors and equipment
+            operators nationwide. Activate a prepaid lead account whenever you&apos;re ready to
+            receive qualified service requests. No monthly subscriptions. Just $25 per accepted lead.
           </p>
         </div>
 
@@ -26,8 +27,9 @@ export default function PricingPage() {
             <div className="text-3xl mb-3">🆓</div>
             <h2 className="text-lg font-bold mb-2">Free Listing</h2>
             <p className="text-gray-400 text-sm flex-1">
-              Your company is listed publicly at no cost. Customers can find and contact you
-              directly from your profile.
+              Free listings provide directory visibility with company details, service categories,
+              coverage areas, capabilities, and verification status. Customers request service
+              through DieselRepairFinder; free listings do not display direct contact details.
             </p>
             <div className="mt-4 text-2xl font-extrabold text-white">$0</div>
             <div className="text-gray-500 text-xs">Always free</div>
@@ -38,21 +40,21 @@ export default function PricingPage() {
               After Approval
             </div>
             <div className="text-3xl mb-3">🎁</div>
-            <h2 className="text-lg font-bold mb-2">3 Free Accepted Leads</h2>
+            <h2 className="text-lg font-bold mb-2">Activate Lead Participation</h2>
             <p className="text-gray-400 text-sm flex-1">
-              Every approved provider receives 3 free accepted lead credits once — after your
-              listing is approved or your claim is verified.
+              Purchase a prepaid package at any time from your provider account to become eligible
+              for matching paid service requests. No monthly subscription is required.
             </p>
-            <div className="mt-4 text-2xl font-extrabold text-blue-400">$0</div>
-            <div className="text-gray-500 text-xs">One time, after approval</div>
+            <div className="mt-4 text-2xl font-extrabold text-blue-400">Prepaid</div>
+            <div className="text-gray-500 text-xs">Credits used on acceptance</div>
           </div>
 
           <div className="bg-gray-950 border border-gray-800 rounded-2xl p-7 flex flex-col">
             <div className="text-3xl mb-3">⚡</div>
             <h2 className="text-lg font-bold mb-2">$25 Per Accepted Lead</h2>
             <p className="text-gray-400 text-sm flex-1">
-              After your free credits, each accepted lead costs $25. You are only charged when
-              you accept a qualified job request.
+              Each accepted qualified lead costs one credit ($25). Declining or not responding
+              never uses a credit. Customer contact details are shared only after acceptance.
             </p>
             <div className="mt-4 text-2xl font-extrabold text-white">$25</div>
             <div className="text-gray-500 text-xs">Per accepted qualified lead</div>
@@ -63,9 +65,9 @@ export default function PricingPage() {
         <div className="bg-gray-950 border border-gray-800 rounded-2xl p-8 mb-14">
           <h2 className="text-lg font-bold mb-3">What counts as a qualified lead?</h2>
           <p className="text-gray-400 text-sm leading-relaxed">
-            A qualified lead includes the customer&apos;s contact details, service location,
-            requested service category, urgency level, and job details. You are only charged when
-            you accept the lead.
+            A request includes the customer&apos;s contact details, service location, requested
+            service category, urgency, and job details. Contact details are revealed only after
+            acceptance, and one credit is used only when you accept the lead.
           </p>
         </div>
 
@@ -73,7 +75,8 @@ export default function PricingPage() {
         <div className="bg-gray-950 border border-gray-800 rounded-2xl p-8 mb-14">
           <h2 className="text-xl font-bold mb-1">Buy Lead Credits in Bulk</h2>
           <p className="text-gray-400 text-sm mb-6">
-            Bulk packages include bonus lead credits. Credits never expire.
+            Bonus credits apply only to the first qualifying package purchase per provider.
+            Packages are prepaid; credits are used when a provider accepts a lead.
           </p>
           <div className="grid sm:grid-cols-3 gap-4">
           {BILLING_PACKAGES.map((pkg) => {
@@ -113,16 +116,11 @@ export default function PricingPage() {
             {
               icon: '✅',
               title: 'Free company listing',
-              desc: 'Your business shows up in our directory at no charge.',
-            },
-            {
-              icon: '🎁',
-              title: 'First 3 accepted leads free after approval',
-              desc: 'Every new approved provider gets a head start.',
+              desc: 'Free listings are visible in directory searches, with service requests handled through DieselRepairFinder.',
             },
             {
               icon: '💳',
-              title: '$25 per accepted lead after free credits',
+              title: '$25 per accepted lead',
               desc: 'Pay only when you accept a qualified job request.',
             },
             {
@@ -133,7 +131,7 @@ export default function PricingPage() {
             {
               icon: '💰',
               title: 'You keep 100% of your labor rate',
-              desc: 'We never take a cut of the job. You negotiate directly with the customer.',
+              desc: 'After accepting a lead, you contact the customer and arrange service directly.',
             },
             {
               icon: '♾️',
@@ -183,7 +181,7 @@ export default function PricingPage() {
                 <li className="flex items-start gap-2">
                   <span className="text-gray-600 mt-0.5">·</span>
                   <span className="text-gray-500">
-                    Does not include additional free leads beyond standard 3-credit offer
+                    Direct contact display is an advertising benefit; lead acceptance still requires credits
                   </span>
                 </li>
               </ul>
@@ -214,7 +212,7 @@ export default function PricingPage() {
                 <li className="flex items-start gap-2">
                   <span className="text-gray-600 mt-0.5">·</span>
                   <span className="text-gray-500">
-                    Does not include additional free leads beyond standard 3-credit offer
+                    Direct contact display is an advertising benefit; lead acceptance still requires credits
                   </span>
                 </li>
               </ul>
@@ -227,7 +225,7 @@ export default function PricingPage() {
         <div className="text-center space-y-4">
           <h2 className="text-2xl font-extrabold">Ready to grow your business?</h2>
           <p className="text-gray-400">
-            Get listed for free and start receiving qualified diesel repair leads.
+            Get listed for free. Purchase credits whenever you are ready to receive qualified service requests.
           </p>
           <div className="flex flex-wrap gap-4 justify-center mt-6">
             <Link
@@ -243,6 +241,17 @@ export default function PricingPage() {
               Claim Your Listing
             </Link>
           </div>
+
+        </div>
+        <div className="bg-gray-950 border border-gray-800 rounded-2xl p-8 mt-14">
+          <h2 className="text-xl font-bold mb-3">AI-assisted service discovery</h2>
+          <p className="text-gray-400 text-sm leading-relaxed">
+            Swamper Clyde, HydroVacFinder&apos;s AI assistant, helps hydrovac operators locate mobile
+            diesel mechanics, mobile tire services, hydraulic hose repair companies, and heavy-duty
+            towing providers. Referrals that support online requests are directed into
+            DieselRepairFinder&apos;s service-request workflow. Similar AI-assisted discovery is in
+            development for IndustrialCleaningFinder.
+          </p>
         </div>
       </main>
     </div>

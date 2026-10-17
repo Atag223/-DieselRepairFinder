@@ -6,15 +6,13 @@ import { BILLING_PACKAGES, BillingPackage } from '@/lib/billing'
 interface Props {
   providerId: string
   leadCredits: number
-  stripeAccountBalanceCents: number
-  freeLeadCreditsIssued: boolean
+  promotionalBonusUsed: boolean
 }
 
 export default function BillingForm({
   providerId,
   leadCredits,
-  stripeAccountBalanceCents,
-  freeLeadCreditsIssued,
+  promotionalBonusUsed,
 }: Props) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -56,23 +54,9 @@ export default function BillingForm({
         <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">
           Your Account
         </h2>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <div className="text-3xl font-extrabold text-blue-400">{leadCredits}</div>
-            <div className="text-gray-400 text-sm mt-1">Lead Credits Available</div>
-          </div>
-          <div>
-            <div className="text-3xl font-extrabold text-green-400">
-              ${(stripeAccountBalanceCents / 100).toFixed(2)}
-            </div>
-            <div className="text-gray-400 text-sm mt-1">Prepaid Balance</div>
-          </div>
-        </div>
-        <div className="mt-4 text-sm text-gray-500">
-          Free credits issued:{' '}
-          <span className={freeLeadCreditsIssued ? 'text-green-400' : 'text-gray-500'}>
-            {freeLeadCreditsIssued ? 'Yes ✓' : 'Not yet'}
-          </span>
+        <div>
+          <div className="text-3xl font-extrabold text-blue-400">{leadCredits}</div>
+          <div className="text-gray-400 text-sm mt-1">Lead Credits Available</div>
         </div>
       </div>
 
@@ -80,9 +64,8 @@ export default function BillingForm({
       <div className="bg-blue-950/40 border border-blue-800/50 rounded-xl p-5 text-sm text-blue-300">
         <p className="font-semibold mb-1">How it works</p>
         <p>
-          Your first 3 accepted leads are free after approval. After that, $25 per accepted
-          qualified lead. Credits are only used when you accept a qualified lead. Credits never
-          expire. No monthly fees.
+          Purchase credits whenever you are ready. One credit ($25) is used only when you accept
+          a qualified lead. Declining or not responding uses no credits. No monthly fees.
         </p>
       </div>
 
@@ -92,7 +75,8 @@ export default function BillingForm({
           Buy Lead Credits
         </h2>
         <p className="text-gray-500 text-xs mb-5">
-          Bulk packages include bonus lead credits. Select a package to continue.
+          Your first qualifying package includes bonus credits. Later purchases include only the
+          purchased credits. Select a package to continue.
         </p>
 
         {error && (
@@ -104,6 +88,7 @@ export default function BillingForm({
         <div className="grid sm:grid-cols-3 gap-4 mb-5">
           {BILLING_PACKAGES.map((pkg) => {
             const isSelected = selectedKey === pkg.key
+            const creditsOnPurchase = pkg.paidCredits + (promotionalBonusUsed ? 0 : pkg.bonusCredits)
             return (
               <button
                 key={pkg.key}
@@ -115,7 +100,7 @@ export default function BillingForm({
                     : 'border-gray-700 bg-gray-900 hover:border-gray-500 hover:bg-gray-800/60'
                 }`}
               >
-                {pkg.bonusLabel && (
+                {!promotionalBonusUsed && pkg.bonusLabel && (
                   <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-600 text-white text-xs font-bold px-3 py-0.5 rounded-full whitespace-nowrap">
                     {pkg.bonusLabel}
                   </span>
@@ -124,11 +109,11 @@ export default function BillingForm({
                   {pkg.name}
                 </div>
                 <div className="text-4xl font-extrabold text-white mb-0.5">
-                  {pkg.awardedCredits}
+                  {creditsOnPurchase}
                 </div>
                 <div className="text-gray-400 text-xs mb-0.5">
                   lead credits
-                  {pkg.bonusCredits > 0 && (
+                  {pkg.bonusCredits > 0 && !promotionalBonusUsed && (
                     <span className="text-green-400 ml-1">
                       ({pkg.paidCredits} + {pkg.bonusCredits} bonus)
                     </span>
@@ -156,12 +141,12 @@ export default function BillingForm({
           {loading
             ? 'Redirecting to checkout…'
             : selectedPkg
-            ? `Buy ${selectedPkg.name} — ${selectedPkg.awardedCredits} credits for $${selectedPkg.amountCents / 100}`
+            ? `Buy ${selectedPkg.name} — ${selectedPkg.paidCredits + (promotionalBonusUsed ? 0 : selectedPkg.bonusCredits)} credits for $${selectedPkg.amountCents / 100}`
             : 'Select a package to continue'}
         </button>
 
         <p className="text-gray-600 text-xs text-center mt-3">
-          Credits are only used when you accept a qualified lead.
+          Each accepted qualified lead uses one credit ($25). Declines and non-responses are free.
         </p>
       </div>
     </div>

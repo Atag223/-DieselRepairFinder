@@ -15,7 +15,14 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   const provider = await prisma.serviceProvider.findUnique({
     where: { id },
-    select: { id: true, businessName: true, email: true, stripeCustomerId: true, deletedAt: true },
+    select: {
+      id: true,
+      businessName: true,
+      email: true,
+      stripeCustomerId: true,
+      deletedAt: true,
+      promotionalBonusUsed: true,
+    },
   })
 
   if (!provider || provider.deletedAt) {
@@ -57,12 +64,14 @@ export async function POST(request: NextRequest, { params }: Params) {
   }
 
   const bonusDesc =
-    pkg.bonusCredits > 0
+    pkg.bonusCredits > 0 && !provider.promotionalBonusUsed
       ? ` + ${pkg.bonusCredits} bonus credit${pkg.bonusCredits > 1 ? 's' : ''}`
       : ''
+  const creditsOnPurchase = pkg.paidCredits + (provider.promotionalBonusUsed ? 0 : pkg.bonusCredits)
 
   const session = await stripe.checkout.sessions.create({
     customer: stripeCustomerId,
+    client_reference_id: provider.id,
     payment_method_types: ['card'],
     mode: 'payment',
     line_items: [
@@ -71,8 +80,8 @@ export async function POST(request: NextRequest, { params }: Params) {
           currency: 'usd',
           unit_amount: pkg.amountCents,
           product_data: {
-            name: `DieselRepairFinder – ${pkg.name} (${pkg.awardedCredits} lead credits)`,
-            description: `${pkg.paidCredits} paid leads${bonusDesc}. Credits used only when you accept a qualified lead.`,
+            name: `DieselRepairFinder – ${pkg.name} (${creditsOnPurchase} lead credits)`,
+            description: `${pkg.paidCredits} base lead credits${bonusDesc} on your first qualifying purchase. Credits are used only when you accept a qualified lead.`,
           },
         },
         quantity: 1,
@@ -81,10 +90,6 @@ export async function POST(request: NextRequest, { params }: Params) {
     metadata: {
       providerId: provider.id,
       packageKey: pkg.key,
-      paidCredits: String(pkg.paidCredits),
-      awardedCredits: String(pkg.awardedCredits),
-      bonusCredits: String(pkg.bonusCredits),
-      amountCents: String(pkg.amountCents),
     },
     success_url: `${appUrl}/providers/${provider.id}/billing?success=1`,
     cancel_url: `${appUrl}/providers/${provider.id}/billing?cancelled=1`,
