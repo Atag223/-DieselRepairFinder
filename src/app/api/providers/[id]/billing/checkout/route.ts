@@ -56,11 +56,22 @@ export async function POST(request: NextRequest, { params }: Params) {
       name: provider.businessName,
       metadata: { providerId: provider.id },
     })
-    stripeCustomerId = customer.id
-    await prisma.serviceProvider.update({
-      where: { id },
-      data: { stripeCustomerId },
+    const savedCustomer = await prisma.serviceProvider.updateMany({
+      where: { id, stripeCustomerId: null },
+      data: { stripeCustomerId: customer.id },
     })
+    if (savedCustomer.count === 1) {
+      stripeCustomerId = customer.id
+    } else {
+      const currentProvider = await prisma.serviceProvider.findUnique({
+        where: { id },
+        select: { stripeCustomerId: true },
+      })
+      if (!currentProvider?.stripeCustomerId) {
+        return NextResponse.json({ error: 'Could not initialize billing account' }, { status: 500 })
+      }
+      stripeCustomerId = currentProvider.stripeCustomerId
+    }
   }
 
   const bonusDesc =
