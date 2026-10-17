@@ -13,6 +13,9 @@ A production-ready MVP marketplace connecting users with mobile diesel mechanics
 - **Mechanic Signup** — `/join` page with full application form
 - **API Routes** — `POST /api/repair-requests` and `POST /api/mechanics/apply`
 - **Email Notifications** — Via [Resend](https://resend.com) on new requests and signups
+- **Provider Accounts** — Approved providers use emailed one-time sign-in links to fund credits and view account history
+- **Lead Credits** — Stripe prepaid packages; verified webhooks grant credits and first-purchase bonuses
+- **State Placements** — State-eligible Featured/Premium requests are approved by administration and activate after payment confirmation
 - **Dark Theme** — Black background with blue accents, mobile responsive
 
 ---
@@ -73,6 +76,18 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
+
+### Provider funding and placement operations
+
+Configure Stripe `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`, and point the Stripe webhook
+endpoint to `/api/stripe/webhook` for `checkout.session.completed` events. The webhook is the only
+path that grants purchased credits; provider checkout requires an approved listing and an emailed
+one-time sign-in link.
+
+Featured and Premium State Placements use an administrative request-and-payment workflow rather
+than Stripe Checkout. Review requests at `/admin/placements`, approve them to arrange payment, and
+use **Confirm payment & activate** only after payment is verified. Placements last one year from
+activation and do not automatically renew. Apply database migrations before using these features.
 
 ---
 
@@ -233,4 +248,3 @@ The script will:
 All providers imported by this script are set to `verificationStatus = UNVERIFIED`.
 **Do not treat these listings as confirmed businesses.** Review and verify each
 provider by phone before marking them as VERIFIED.
-

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { prisma } from '@/lib/prisma'
 import { BILLING_PACKAGES } from '@/lib/billing'
+import { isProviderSessionValid, PROVIDER_SESSION_COOKIE } from '@/lib/provider-auth'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -12,6 +13,9 @@ export async function POST(request: NextRequest, { params }: Params) {
   }
 
   const { id } = await params
+  if (!(await isProviderSessionValid(id, request.cookies.get(PROVIDER_SESSION_COOKIE)?.value))) {
+    return NextResponse.json({ error: 'Sign in to your approved provider account to buy credits.' }, { status: 401 })
+  }
 
   const provider = await prisma.serviceProvider.findUnique({
     where: { id },
@@ -21,11 +25,14 @@ export async function POST(request: NextRequest, { params }: Params) {
       email: true,
       stripeCustomerId: true,
       deletedAt: true,
+      active: true,
+      approvedAt: true,
+      suspendedAt: true,
       promotionalBonusUsed: true,
     },
   })
 
-  if (!provider || provider.deletedAt) {
+  if (!provider || provider.deletedAt || !provider.active || !provider.approvedAt || provider.suspendedAt) {
     return NextResponse.json({ error: 'Provider not found' }, { status: 404 })
   }
 
@@ -102,7 +109,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       providerId: provider.id,
       packageKey: pkg.key,
     },
-    success_url: `${appUrl}/providers/${provider.id}/billing?success=1`,
+    success_url: `${appUrl}/providers/${provider.id}/billing?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${appUrl}/providers/${provider.id}/billing?cancelled=1`,
   })
 

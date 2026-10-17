@@ -71,13 +71,14 @@ export default async function HydraulicHoseRepairCityPage({ params }: Props) {
       id: true, businessName: true, phone: true, email: true, website: true, description: true, city: true, state: true,
       serviceRadius: true,
       locations: { where: { active: true }, select: { city: true, state: true, serviceRadius: true } },
+      placements: { where: { state, status: 'ACTIVE', expiresAt: { gt: new Date() } }, select: { state: true, tier: true, status: true, expiresAt: true } },
       services: true, providerCategory: true, tier: true, verificationStatus: true,
       isVerified: true, rating: true, reviewCount: true, claimStatus: true, is24_7: true,
     },
     take: 200,
   })
 
-  const providers = sortProviders(rows.map(toPublicProvider) as ProviderCardData[])
+  const providers = sortProviders(rows.map((row) => toPublicProvider(row, state) as ProviderCardData))
 
   return (
     <div className="min-h-screen bg-black text-white">

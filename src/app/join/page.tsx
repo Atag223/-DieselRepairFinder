@@ -99,7 +99,6 @@ export default function JoinPage() {
   const [result, setResult] = useState<{
     success: boolean
     error?: string
-    providerId?: string
   } | null>(null)
   const serviceOptions =
     form.providerCategory === 'HYDRAULIC_HOSE_REPAIR'
@@ -141,7 +140,7 @@ export default function JoinPage() {
       })
       const data = await res.json()
       if (res.ok) {
-        setResult({ success: true, providerId: data.id })
+        setResult({ success: true })
       } else {
         setResult({ success: false, error: data.error || 'Something went wrong.' })
       }
@@ -234,19 +233,11 @@ export default function JoinPage() {
                 service-request participation by purchasing prepaid lead credits; matching starts
                 after the listing is approved.
               </p>
-              {result.providerId && (
-                <Link
-                  href={`/providers/${result.providerId}/billing`}
-                  className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors mr-3"
-                >
-                  Activate Lead Participation
-                </Link>
-              )}
               <Link
                 href="/"
                 className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors"
               >
-                ← Back to Home
+                Continue With Free Listing
               </Link>
             </div>
           ) : (

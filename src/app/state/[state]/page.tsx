@@ -72,12 +72,13 @@ export default async function StatePage({ params }: Props) {
       services: true, providerCategory: true, tier: true, verificationStatus: true,
       isVerified: true, rating: true, reviewCount: true, claimStatus: true, is24_7: true,
       _count: { select: { locations: { where: { active: true } } } },
+      placements: { where: { state, status: 'ACTIVE', expiresAt: { gt: new Date() } }, select: { state: true, tier: true, status: true, expiresAt: true } },
     },
     take: 300,
   })
 
   const providers = sortProviders(
-    rows.map((r) => toPublicProvider({ ...r, locationCount: r._count.locations })) as ProviderCardData[]
+    rows.map((r) => toPublicProvider({ ...r, locationCount: r._count.locations }, state) as ProviderCardData)
   )
 
   // Group by city for SEO section

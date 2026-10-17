@@ -71,12 +71,16 @@ export default function BillingForm({
 
       {/* Buy credits */}
       <div className="bg-gray-950 border border-gray-800 rounded-xl p-6">
+        <div id="buy-lead-credits" />
         <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">
-          Buy Lead Credits
+          Fund Your Account · Buy Lead Credits
         </h2>
         <p className="text-gray-500 text-xs mb-5">
           Your first qualifying package includes bonus credits. Later purchases include only the
           purchased credits. Select a package to continue.
+        </p>
+        <p className={`mb-5 text-sm ${promotionalBonusUsed ? 'text-gray-400' : 'text-green-300'}`}>
+          Introductory bonus: {promotionalBonusUsed ? 'already used' : 'available on your first successful purchase'}.
         </p>
 
         {error && (

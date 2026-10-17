@@ -80,13 +80,17 @@ export async function POST(request: NextRequest) {
 
         const currentProvider = await transaction.serviceProvider.findUnique({
           where: { id: providerId },
-          select: { promotionalBonusUsed: true, stripeCustomerId: true },
+          select: { stripeCustomerId: true },
         })
         if (!currentProvider || currentProvider.stripeCustomerId !== stripeCustomerId) {
           throw new Error('Checkout customer does not match provider')
         }
 
-        const bonusCredits = currentProvider.promotionalBonusUsed ? 0 : pkg.bonusCredits
+        const bonusClaim = await transaction.serviceProvider.updateMany({
+          where: { id: providerId, promotionalBonusUsed: false },
+          data: { promotionalBonusUsed: true },
+        })
+        const bonusCredits = bonusClaim.count === 1 ? pkg.bonusCredits : 0
         const awardedCredits = pkg.paidCredits + bonusCredits
         const bonusDesc = bonusCredits > 0 ? ` + ${bonusCredits} promotional bonus credits` : ''
 
@@ -104,7 +108,6 @@ export async function POST(request: NextRequest) {
           where: { id: providerId },
           data: {
             leadCredits: { increment: awardedCredits },
-            ...(bonusCredits > 0 ? { promotionalBonusUsed: true } : {}),
           },
         })
         await transaction.leadCreditTransaction.create({

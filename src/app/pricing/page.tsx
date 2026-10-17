@@ -81,10 +81,7 @@ export default function PricingPage() {
           <div className="grid sm:grid-cols-3 gap-4">
           {BILLING_PACKAGES.map((pkg) => {
             return (
-              <div
-                key={pkg.key}
-                className="relative border border-gray-700 bg-gray-900 rounded-xl p-5 text-center"
-              >
+              <div key={pkg.key} className="relative border border-gray-700 bg-gray-900 rounded-xl p-5 text-center">
                 {pkg.bonusLabel && (
                   <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-600 text-white text-xs font-bold px-3 py-0.5 rounded-full whitespace-nowrap">
                     {pkg.bonusLabel}
@@ -104,6 +101,12 @@ export default function PricingPage() {
                 <div className="text-gray-500 text-xs">
                   ${pkg.amountCents / 100 / pkg.paidCredits} per lead
                 </div>
+                <Link
+                  href="/providers/login"
+                  className="mt-4 block rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-500"
+                >
+                  Fund Your Account · Buy Credits
+                </Link>
               </div>
             )
           })}
@@ -186,6 +189,9 @@ export default function PricingPage() {
                 </li>
               </ul>
               <div className="text-2xl font-extrabold text-blue-400">$1,250<span className="text-base font-medium text-gray-500">/year</span></div>
+              <Link href="/providers/login" className="mt-4 rounded-lg bg-blue-700 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-blue-600">
+                Request Featured Placement
+              </Link>
             </div>
 
             <div className="bg-yellow-950/20 border border-yellow-700/50 rounded-2xl p-7 flex flex-col">
@@ -217,6 +223,9 @@ export default function PricingPage() {
                 </li>
               </ul>
               <div className="text-2xl font-extrabold text-yellow-400">$1,500<span className="text-base font-medium text-gray-500">/year</span></div>
+              <Link href="/providers/login" className="mt-4 rounded-lg bg-yellow-700 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-yellow-600">
+                Request Premium Placement
+              </Link>
             </div>
           </div>
         </div>
@@ -233,6 +242,12 @@ export default function PricingPage() {
               className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-3 rounded-xl text-base transition-colors"
             >
               Join as Provider
+            </Link>
+            <Link
+              href="/providers/login"
+              className="bg-gray-800 hover:bg-gray-700 text-white font-bold px-8 py-3 rounded-xl text-base transition-colors"
+            >
+              Fund Your Account
             </Link>
             <Link
               href="/providers"

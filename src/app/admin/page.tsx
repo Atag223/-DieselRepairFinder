@@ -55,6 +55,9 @@ export default async function AdminPage() {
             >
               Manage Providers
             </Link>
+            <Link href="/admin/placements" className="text-blue-400 hover:text-blue-300 text-sm transition-colors">
+              Placement Requests
+            </Link>
             <AdminLogout />
           </div>
         </div>

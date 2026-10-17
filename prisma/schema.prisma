@@ -178,8 +178,52 @@ model ServiceProvider {
   creditTransactions  LeadCreditTransaction[]
   payments            ProviderPayment[]
   locations           ProviderLocation[]
+  loginTokens         ProviderLoginToken[]
+  sessions            ProviderSession[]
+  placements          ListingPlacement[]
 
   @@map("DieselMechanic")
+}
+
+model ProviderLoginToken {
+  id         String   @id @default(cuid())
+  providerId String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+  provider   ServiceProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId, createdAt])
+}
+
+model ProviderSession {
+  id         String   @id @default(cuid())
+  providerId String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  provider   ServiceProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId, expiresAt])
+}
+
+model ListingPlacement {
+  id            String   @id @default(cuid())
+  providerId    String
+  state         String
+  tier          ProviderTier
+  status        String   @default("REQUESTED")
+  paymentStatus String   @default("PENDING")
+  requestedAt   DateTime @default(now())
+  approvedAt    DateTime?
+  paidAt        DateTime?
+  startsAt      DateTime?
+  expiresAt     DateTime?
+  provider      ServiceProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId, status])
+  @@index([state, tier, status])
 }
 
 model Lead {

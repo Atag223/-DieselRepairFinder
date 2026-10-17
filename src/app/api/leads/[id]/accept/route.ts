@@ -133,7 +133,10 @@ export async function POST(request: NextRequest, { params }: Params) {
       if (latest?.status === LeadStatus.ACCEPTED) {
         return response({ success: true, status: 'ACCEPTED', customer: lead.serviceRequest })
       }
-      return response({ error: 'Purchase lead credits to accept this request' }, 402)
+      return response({
+        error: 'Purchase lead credits to accept this request.',
+        billingUrl: `/providers/${lead.providerId}/billing`,
+      }, 402)
     }
     if (error instanceof Error && error.message === 'LEAD_UNAVAILABLE') {
       const latest = await prisma.lead.findUnique({ where: { id: lead.id }, select: { status: true } })

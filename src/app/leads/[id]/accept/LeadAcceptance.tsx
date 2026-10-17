@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 
 type Customer = {
   requesterName: string
@@ -18,6 +19,7 @@ type Customer = {
 export default function LeadAcceptance({ leadId, token }: { leadId: string; token: string }) {
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [message, setMessage] = useState('')
+  const [billingUrl, setBillingUrl] = useState('')
   const [loading, setLoading] = useState(false)
 
   async function respond(action: 'accept' | 'decline') {
@@ -32,6 +34,7 @@ export default function LeadAcceptance({ leadId, token }: { leadId: string; toke
       const result = await response.json()
       if (!response.ok) {
         setMessage(result.error ?? 'Unable to process this lead.')
+        setBillingUrl(result.billingUrl ?? '')
       } else if (action === 'decline') {
         setMessage('You declined this service request. No credits were used.')
       } else {
@@ -52,6 +55,11 @@ export default function LeadAcceptance({ leadId, token }: { leadId: string; toke
         Review this request. Customer contact details are shared only after you accept for one credit ($25).
       </p>
       {message && <p role="status" className="mb-5 rounded-lg bg-gray-900 p-4">{message}</p>}
+      {billingUrl && (
+        <Link href={billingUrl} className="mb-5 inline-block rounded-lg bg-blue-600 px-5 py-3 font-semibold">
+          Fund Your Account · Buy Lead Credits
+        </Link>
+      )}
       {customer ? (
         <section className="space-y-3 rounded-xl border border-gray-700 bg-gray-900 p-6">
           <h2 className="text-xl font-semibold">Customer contact</h2>

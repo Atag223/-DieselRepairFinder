@@ -61,6 +61,14 @@ async function getProviders(state: string, city: string, category: string) {
         where: { active: true },
         select: { city: true, state: true, serviceRadius: true },
       },
+      placements: {
+        where: {
+          ...(state ? { state } : { state: '__NO_MATCHING_STATE__' }),
+          status: 'ACTIVE',
+          expiresAt: { gt: new Date() },
+        },
+        select: { state: true, tier: true, status: true, expiresAt: true },
+      },
       services: true,
       providerCategory: true,
       tier: true,
@@ -74,7 +82,7 @@ async function getProviders(state: string, city: string, category: string) {
     take: 200,
   })
 
-  return sortProviders(rows.map(toPublicProvider) as ProviderCardData[])
+  return sortProviders(rows.map((row) => toPublicProvider(row, state) as ProviderCardData))
 }
 
 async function getCitiesForState(state: string): Promise<string[]> {

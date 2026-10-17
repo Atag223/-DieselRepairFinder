@@ -10,6 +10,13 @@ type PublicProvider = {
   state: string
   serviceRadius?: number | null
   locations?: Array<{ city: string; state: string; serviceRadius: number }>
+  locationCount?: number
+  placements?: Array<{
+    state: string
+    tier: 'FREE' | 'FEATURED' | 'PREMIUM'
+    status: string
+    expiresAt: Date | null
+  }>
 }
 
 export function redactContactDetails(value: string): string {
@@ -19,7 +26,17 @@ export function redactContactDetails(value: string): string {
     .replace(/\+?\d[\d().\s-]{6,}\d/g, '[contact details hidden]')
 }
 
-export function toPublicProvider<T extends PublicProvider>(provider: T) {
+export function toPublicProvider<T extends PublicProvider>(provider: T, state?: string) {
+  const activePlacement = state
+    ? provider.placements?.find(
+        (placement) =>
+          placement.state === state &&
+          placement.status === 'ACTIVE' &&
+          placement.expiresAt !== null &&
+          placement.expiresAt > new Date()
+      )
+    : undefined
+  const { placements: _placements, ...publicProvider } = provider
   const serviceAreas = provider.locations?.length
     ? [...new Set(provider.locations.map(
         (location) => `${location.city}, ${location.state} (${location.serviceRadius} mi)`
@@ -27,19 +44,20 @@ export function toPublicProvider<T extends PublicProvider>(provider: T) {
     : [`${provider.city}, ${provider.state} (${provider.serviceRadius ?? 50} mi)`]
 
   return {
-    ...provider,
-    ...(provider.tier === 'FREE' && provider.businessName
+    ...publicProvider,
+    tier: activePlacement?.tier ?? 'FREE',
+    ...(provider.businessName
       ? { businessName: redactContactDetails(provider.businessName) }
       : {}),
-    ...(provider.tier === 'FREE' && provider.description
+    ...(provider.description
       ? { description: redactContactDetails(provider.description) }
       : {}),
-    ...(provider.tier === 'FREE' && provider.services
+    ...(provider.services
       ? { services: provider.services.map(redactContactDetails) }
       : {}),
-    phone: provider.tier === 'FREE' ? null : provider.phone ?? null,
-    email: provider.tier === 'FREE' ? null : provider.email ?? null,
-    website: provider.tier === 'FREE' ? null : provider.website ?? null,
+    phone: activePlacement ? provider.phone ?? null : null,
+    email: activePlacement ? provider.email ?? null : null,
+    website: activePlacement ? provider.website ?? null : null,
     serviceAreas,
   }
 }

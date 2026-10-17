@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminRequest } from '@/lib/admin-auth'
 import { ProviderCategory, ProviderTier, VerificationStatus, ClaimStatus } from '@prisma/client'
+import { sendProviderApprovalEmail } from '@/lib/email'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -26,6 +27,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           suspendedReason: fields.reason || null,
         },
       })
+      if (updated.email) {
+        await sendProviderApprovalEmail({ to: updated.email, businessName: updated.businessName })
+      }
       return NextResponse.json({ success: true, provider: updated })
     }
 
@@ -74,6 +78,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         })
       }
 
+      if (updated.email) {
+        await sendProviderApprovalEmail({ to: updated.email, businessName: updated.businessName })
+      }
       return NextResponse.json({ success: true, provider: updated })
     }
 
