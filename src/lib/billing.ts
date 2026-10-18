@@ -46,3 +46,8 @@ export const BILLING_PACKAGES: BillingPackage[] = [
     bonusLabel: '8 Free Leads',
   },
 ]
+
+export const PLACEMENT_PRICES_CENTS = {
+  FEATURED: 125000,
+  PREMIUM: 150000,
+} as const
