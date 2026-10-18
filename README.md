@@ -151,6 +151,118 @@ npm start
 
 ---
 
+## Manual Production database migrations
+
+`.github/workflows/prisma-production-migrate.yml` is **manual-only**. It never
+deploys the app. Verification-only mode is selected by default and does not apply
+migrations. Applying uses the locked Prisma 5 CLI and only `prisma migrate deploy`;
+it does not reset, seed, push a schema, or automatically resolve migration history.
+
+### One-time setup (repository administrator)
+
+1. In Supabase, independently identify the **Production** project (not Preview)
+   and its project reference in **Project Settings → General**. Confirm that a
+   recent backup and a recovery plan are available before approving any writes.
+2. In GitHub, open **Settings → Environments → New environment**, name it
+   `production`, and click **Configure environment**. Add required reviewers
+   (and prevent self-review where available). Restrict deployment branches to
+   reviewed migration branches; do not allow untrusted PR code access to secrets.
+3. Under that environment's **Environment secrets → Add environment secret**, add:
+   - `PRODUCTION_DATABASE_URL`: Production Supabase PostgreSQL connection string.
+   - `PRODUCTION_DIRECT_URL`: Production direct connection string, or the
+     **session** pooler on port `5432` if the runner cannot reach the IPv6-only
+     direct host. Never use transaction pooling for this secret.
+4. Under **Environment variables → Add environment variable**, add
+   `PRODUCTION_SUPABASE_PROJECT_REF` with the Production project reference.
+   This is an independent allowlist, not a value inferred from either URL.
+   Repository-level Actions secrets/variables with these names also work, but
+   environment-scoped credentials with required reviewers are recommended.
+
+Both URLs must use the `postgres` database and `public` schema, include
+`sslmode=require` (or `verify-full`), and have an explicit port. Direct hosts must
+be `db.<Production-project-reference>.supabase.co:5432` with user `postgres`.
+Pooler hosts must be `aws-<number>-<region>.pooler.supabase.com` with user
+`postgres.<Production-project-reference>`; `DATABASE_URL` may use port `6543`,
+but `DIRECT_URL` must use `5432`. URL-encode password special characters.
+Only documented Prisma pooling/timeout parameters are allowed; host/database
+overrides, custom domains, local hosts and other Supabase projects are rejected.
+No hostname heuristic can distinguish a Production project from a Preview project
+on Supabase: the independently checked project reference is the safety boundary.
+Never paste credentials into workflow inputs, source files, screenshots or logs.
+
+### Run using GitHub only
+
+**Prerequisite:** GitHub requires this workflow file to exist on default branch
+`main` before its **Run workflow** button is available. This workflow-only PR
+does not itself include PR #34's application or migration changes. Once an
+administrator approves adding the workflow to `main`, also put the same reviewed
+workflow on the branch containing PR #34's complete migration history. This can
+be done in GitHub's file editor: select that branch under **Code**, choose
+**Add file → Create new file**, enter `.github/workflows/prisma-production-migrate.yml`,
+copy the reviewed workflow verbatim, and commit it to that branch (or use a
+reviewed follow-up PR if branch rules require one). Do not run it from `main`
+while `main` lacks those migrations. Nothing is merged or executed by preparing
+this workflow.
+
+1. Open **Actions → Prisma Production migrations → Run workflow**.
+2. In **Use workflow from / Branch**, select the **reviewed branch containing both
+   the workflow and all pending migrations**. For PR #34, its current head branch
+   is `copilot/align-prepaid-lead-credit-packages`, based on PR #33.
+   Do not select this workflow-only PR branch; the missing-migrations guard
+   deliberately rejects it. The checkout is pinned to the selected run's commit,
+   never hardcoded to `main` or a moving application branch.
+3. Leave **Only check migration status** checked and confirmation empty.
+   Click **Run workflow**. If prompted, open the run → **Review deployments** →
+   select `production` → **Approve and deploy** (GitHub's label approves this job,
+   not an application deployment).
+4. Open the run → `migrate`. Verify the selected ref/commit, the successful target
+   guard, and **Read-only migration status**, which reports pending migrations or
+   an up-to-date history. Review the SQL files at that exact commit before writes.
+5. After reviewing backups, migration risks and the dry verification, repeat
+   **Run workflow** on the **same reviewed commit/branch** (check it has not changed).
+   Uncheck verification-only, type `APPLY PRODUCTION MIGRATIONS`, click
+   **Run workflow**, and approve the environment again if required.
+6. Success requires a green run, **Apply pending Production migrations** reporting
+   completion, and **Verify Production migration history after deploy** reporting
+   **No pending migrations remain**. The run summary confirms this too. A green
+   verification-only run is **not** proof that migrations were applied.
+   Only then consider merging/deploying PR #33/#34 separately, with approval.
+
+Prisma output is captured rather than printed, including on failure, because
+database connection errors may expose sensitive URL details in this public repo.
+If verification or deployment fails, stop and have a database maintainer inspect
+the database privately. An interrupted/failed migration may have partially applied;
+do not blindly retry, baseline, reset or mark migrations resolved.
+
+### Migration-history risks checked before implementation
+
+- PR #33 currently changes only package pricing; it adds no migration files.
+  PR #34 includes the eight earlier migrations and adds, in order:
+  `20261017000000_lead_acceptance_and_listing_privacy`,
+  `20261017010000_provider_accounts_and_placements`, and
+  `20261017020000_stripe_placement_checkout`. The workflow requires these three
+  files and uses the selected checkout's entire `prisma/migrations` history.
+- There is **no `prisma/migrations/migration_lock.toml`**. Existing migration
+  files are left untouched; a maintainer should confirm the intended PostgreSQL
+  migration lineage before execution.
+- The earliest migration alters existing `DieselMechanic` and
+  `DieselRepairRequest` tables instead of creating a complete initial schema.
+  This is **not an empty-database bootstrap**. Confirm Production has the expected
+  baseline and matching `_prisma_migrations` records. Prior manual changes
+  (including the repository's provider-location SQL scripts) may conflict with
+  pending migrations even if their columns already exist.
+- `prisma migrate status` checks migration history, **not live-schema drift**.
+  It cannot prove that tables/columns match the migration files or that old
+  migrations were never edited. Have a maintainer reconcile any drift privately
+  before approving writes; this workflow does not repair it.
+- PR #34's first migration intentionally backfills accepted-lead fields and
+  promotional eligibility, and its second backfills provider approval dates.
+  They also create indexes/tables, and the third depends on the second's
+  `ListingPlacement` table. These intended writes may acquire locks; inspect
+  the exact SQL, backups and maintenance timing before execution.
+
+---
+
 ## Seeding Providers from Google Places
 
 The repository ships with a one-time seeding script that imports mobile diesel
@@ -233,4 +345,3 @@ The script will:
 All providers imported by this script are set to `verificationStatus = UNVERIFIED`.
 **Do not treat these listings as confirmed businesses.** Review and verify each
 provider by phone before marking them as VERIFIED.
-

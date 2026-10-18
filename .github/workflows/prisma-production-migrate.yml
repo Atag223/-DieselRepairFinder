@@ -1,0 +1,164 @@
+name: Prisma Production migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      verify_only:
+        description: "Only check migration status (no migrations applied)"
+        type: boolean
+        default: true
+      confirmation:
+        description: "To apply, type APPLY PRODUCTION MIGRATIONS"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prisma-production-migrations
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    env:
+      DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.PRODUCTION_DIRECT_URL }}
+      PRODUCTION_PROJECT_REF: ${{ vars.PRODUCTION_SUPABASE_PROJECT_REF }}
+      VERIFY_ONLY: ${{ inputs.verify_only }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+      CHECKPOINT_DISABLE: "1"
+      NO_COLOR: "1"
+    steps:
+      - name: Check out the exact manually selected commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js LTS
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+
+      - name: Validate Production target and migration checkout
+        shell: bash
+        run: |
+          node <<'NODE'
+          const { existsSync } = require("node:fs");
+          const fail = (message) => { console.error(message); process.exit(1); };
+          const ref = process.env.PRODUCTION_PROJECT_REF;
+          if (!/^[a-z0-9]{20}$/.test(ref || "")) {
+            fail("Set PRODUCTION_SUPABASE_PROJECT_REF to the independently verified Production project reference.");
+          }
+          if (!["true", "false"].includes(process.env.VERIFY_ONLY) ||
+              (process.env.VERIFY_ONLY === "false" &&
+               process.env.CONFIRMATION !== "APPLY PRODUCTION MIGRATIONS")) {
+            fail("Applying migrations requires explicit confirmation.");
+          }
+          for (const name of ["DATABASE_URL", "DIRECT_URL"]) {
+            try {
+              const raw = process.env[name];
+              if (!raw || raw !== raw.trim()) throw new Error();
+              const url = new URL(raw);
+              const user = decodeURIComponent(url.username);
+              const direct = url.hostname === `db.${ref}.supabase.co` &&
+                user === "postgres" && url.port === "5432";
+              const pooler = /^aws-\d+-[a-z0-9-]+\.pooler\.supabase\.com$/.test(url.hostname) &&
+                user === `postgres.${ref}` &&
+                (url.port === "5432" || (name === "DATABASE_URL" && url.port === "6543"));
+              const allowedParams = new Set([
+                "sslmode", "schema", "pgbouncer", "connection_limit",
+                "pool_timeout", "connect_timeout", "statement_cache_size"
+              ]);
+              if (!["postgres:", "postgresql:"].includes(url.protocol) ||
+                  !url.password || url.pathname !== "/postgres" || url.hash ||
+                  (!direct && !pooler) ||
+                  !["require", "verify-full"].includes(url.searchParams.get("sslmode")) ||
+                  (url.searchParams.has("schema") && url.searchParams.get("schema") !== "public") ||
+                  (name === "DIRECT_URL" && url.searchParams.get("pgbouncer") === "true") ||
+                  [...url.searchParams.keys()].some(key =>
+                    !allowedParams.has(key) || url.searchParams.getAll(key).length !== 1)) {
+                throw new Error();
+              }
+            } catch {
+              fail(`${name} rejected: use the approved Production Supabase project, postgres database, public schema, and required TLS. DIRECT_URL must use port 5432.`);
+            }
+          }
+          for (const migration of [
+            "20261017000000_lead_acceptance_and_listing_privacy",
+            "20261017010000_provider_accounts_and_placements",
+            "20261017020000_stripe_placement_checkout"
+          ]) {
+            if (!existsSync(`prisma/migrations/${migration}/migration.sql`)) {
+              fail("Missing PR #34 migrations. Select a reviewed branch containing the workflow AND the complete migration history.");
+            }
+          }
+          console.log("Both URLs match the approved Production project. PR #34 migration files are present.");
+          NODE
+          echo "Selected ref: $GITHUB_REF"
+          echo "Selected commit: $GITHUB_SHA"
+
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Read-only migration status
+        shell: bash
+        run: |
+          node <<'NODE'
+          const { spawnSync } = require("node:child_process");
+          const { existsSync } = require("node:fs");
+          const result = spawnSync("npx", ["--no-install", "prisma", "migrate", "status"], { encoding: "utf8" });
+          // Do not echo Prisma output: connection errors can contain credentials.
+          if (result.status === 0 && result.stdout.includes("Database schema is up to date!")) {
+            console.log("No pending migrations; database migration history is up to date.");
+          } else {
+            // Prisma 5 returns exit code 1 for pending migrations as well as errors.
+            const pending = result.stdout?.match(/^Following migrations? have not yet been applied:\r?\n([^\r\n]+(?:\r?\n[^\r\n]+)*)\r?\n\r?\n/m);
+            const names = pending?.[1].split(/\r?\n/) || [];
+            if (result.status !== 1 || result.stderr?.trim() || !names.length ||
+                names.some(name => !/^\d{14}_[a-z0-9_]+$/.test(name) ||
+                  !existsSync(`prisma/migrations/${name}/migration.sql`))) {
+              console.error("Status verification failed. Check connectivity, credentials, baseline and migration history privately; no migrations were applied.");
+              process.exit(1);
+            }
+            console.log(`${names.length} pending migration(s) found in this checkout.`);
+          }
+          console.log(process.env.VERIFY_ONLY === "true"
+            ? "Verification only: no migrations will be applied."
+            : "Verification passed; proceeding to explicitly approved migrations.");
+          NODE
+
+      - name: Apply pending Production migrations
+        if: ${{ !inputs.verify_only }}
+        shell: bash
+        run: |
+          node <<'NODE'
+          const { spawnSync } = require("node:child_process");
+          const result = spawnSync("npx", ["--no-install", "prisma", "migrate", "deploy"], { encoding: "utf8" });
+          if (result.status !== 0) {
+            console.error("Production migrate deploy failed. Stop and investigate privately; migrations may have partially applied. Do not blindly retry.");
+            process.exit(1);
+          }
+          console.log("Production prisma migrate deploy completed successfully.");
+          NODE
+
+      - name: Verify Production migration history after deploy
+        if: ${{ !inputs.verify_only }}
+        shell: bash
+        run: |
+          node <<'NODE'
+          const { spawnSync } = require("node:child_process");
+          const { appendFileSync } = require("node:fs");
+          const result = spawnSync("npx", ["--no-install", "prisma", "migrate", "status"], { encoding: "utf8" });
+          if (result.status !== 0 || !result.stdout.includes("Database schema is up to date!")) {
+            console.error("Post-deploy status verification failed. Do not merge or deploy the app until investigated.");
+            process.exit(1);
+          }
+          console.log("Production migration history is up to date. No pending migrations remain.");
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            "Production migration deploy completed and post-deploy status reports no pending migrations.\n");
+          NODE
