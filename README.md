@@ -94,6 +94,39 @@ when production is ready. Set `NEXT_PUBLIC_APP_URL` to the matching Preview or P
 do not reuse webhook signing secrets across endpoints or modes. The webhook's secret must correspond
 to the endpoint and mode sending events. Apply database migrations before using these features.
 
+### Private HydroVacFinder provider discovery
+
+`GET /api/internal/hvf/emergency-providers` is a private server-to-server API. HydroVacFinder must
+send `x-hvf-api-key` with the value of DieselRepairFinder's `HVF_INTERNAL_API_KEY`; keep that key in
+server-only environment settings on both applications and never call this route directly from a
+browser. Missing or invalid credentials receive `401`; a missing server key receives `500`.
+
+The API returns matching active providers that are not suspended or deleted, including FREE,
+unverified, and Google Places-imported listings, subject to the requested result limit (50 by default,
+100 maximum). Lead-credit balance, listing approval, and public
+contact-display rules do not control this private discovery endpoint. Authenticated results include
+provider and active-branch contact details, category/services, and geographic data. Existing response
+fields (`id`, `name`, `category`, `city`, `state`, `address`, `primaryCity`, `primaryState`,
+`locationMismatch`, `services`, `is24_7`, `tier`, `verificationStatus`, `rating`, `distanceMiles`,
+`distanceFromMainAddress`, `nearestLocation`, `source`, `serviceRequestUrl`, and `meta`) remain
+available; contact fields and full active `locations` are additive. The response is still provider
+discovery only: public customers must submit repair requests through DieselRepairFinder.
+
+Optional query parameters are `city`, `state`, `category`, `latitude`, `longitude`, `radiusMiles`,
+and `limit` (50 by default, 100 maximum). Category matches the `ProviderCategory` enum. City and
+state search both the primary provider address and active branch locations. Supplying both
+coordinates ranks by the nearest primary or active-branch coordinate, filters to the requested radius
+(100 miles by default), and only then applies the result limit. Omitting location filters allows
+nationwide search.
+
+The `tests/hvf-emergency-providers.test.ts` suite protects provider eligibility, private response
+fields, branch matching, and distance ranking. For HydroVacFinder-side compatibility, verify its
+server sends the `x-hvf-api-key` header and reads the existing `providers` array and established
+fields without assuming the new contact/location fields are absent. Also run an authenticated end-to-
+end search for each supported provider category with no geographic filters, a city/state filter, and
+an origin/radius around a provider that has multiple active locations. This repository cannot verify
+the HydroVacFinder consumer behavior without its source/configuration and test credentials.
+
 ---
 
 ## Project Structure
