@@ -9,7 +9,10 @@ export interface ProviderCardData {
   id: string
   businessName: string
   phone: string | null
+  email: string | null
   website: string | null
+  description: string | null
+  serviceAreas: string[]
   city: string
   state: string
   services: string[]
@@ -137,32 +140,42 @@ export default function ProviderCard({ provider }: { provider: ProviderCardData 
         </div>
       )}
 
-      {/* Contact info */}
-      <div className="flex flex-wrap gap-3 text-sm text-gray-400">
-        {provider.website && (
-          <a
-            href={provider.website.startsWith('http') ? provider.website : `https://${provider.website}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 text-blue-400 hover:underline"
-          >
-            <span>🌐</span>
-            <span className="truncate max-w-[160px]">Website</span>
-          </a>
-        )}
-        {provider.is24_7 && (
-          <span className="flex items-center gap-1 text-green-400">
-            <span>🕐</span>
-            <span>24/7</span>
-          </span>
-        )}
-        {provider.locationCount != null && provider.locationCount > 1 && (
-          <span className="flex items-center gap-1 text-blue-400">
-            <span>📍</span>
-            <span>Multiple locations</span>
-          </span>
-        )}
+      {provider.description && (
+        <p className="text-sm text-gray-300 line-clamp-3">{provider.description}</p>
+      )}
+
+      <div className="text-xs text-gray-500">
+        <span className="font-semibold text-gray-400">Service areas:</span>{' '}
+        {provider.serviceAreas.join(' · ')}
       </div>
+
+      {(provider.is24_7 || (provider.locationCount != null && provider.locationCount > 1)) && (
+        <div className="flex flex-wrap gap-3 text-sm text-gray-400">
+          {provider.is24_7 && <span className="text-green-400">🕐 24/7</span>}
+          {provider.locationCount != null && provider.locationCount > 1 && (
+            <span className="text-blue-400">📍 Multiple locations</span>
+          )}
+        </div>
+      )}
+
+      {/* Paid placements include direct contact as an advertising benefit. */}
+      {provider.tier !== 'FREE' && (provider.phone || provider.email || provider.website) && (
+        <div className="flex flex-wrap gap-3 text-sm text-gray-400">
+          {provider.phone && <a href={`tel:${provider.phone}`} className="text-blue-400 hover:underline">Call provider</a>}
+          {provider.email && <a href={`mailto:${provider.email}`} className="text-blue-400 hover:underline">Email provider</a>}
+          {provider.website && (
+            <a
+              href={provider.website.startsWith('http') ? provider.website : `https://${provider.website}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-blue-400 hover:underline"
+            >
+              <span>🌐</span>
+              <span className="truncate max-w-[160px]">Website</span>
+            </a>
+          )}
+        </div>
+      )}
 
       {/* Action buttons */}
       <div className="flex flex-wrap gap-2 pt-1">
@@ -170,7 +183,7 @@ export default function ProviderCard({ provider }: { provider: ProviderCardData 
           href={categoryHref}
           className="flex-1 min-w-[100px] text-center bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-3 py-2 rounded-lg transition-colors"
         >
-          🚛 Send Job Request
+          Request Service
         </Link>
       </div>
 

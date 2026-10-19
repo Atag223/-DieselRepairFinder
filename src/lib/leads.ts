@@ -1,16 +1,17 @@
 import { prisma } from '@/lib/prisma'
 import { ProviderTier, LeadStatus, ProviderLocation } from '@prisma/client'
 import { calculateDistanceMiles } from '@/lib/distance'
+import { createHash, randomBytes } from 'node:crypto'
+import { sendProviderLeadOpportunityEmail } from '@/lib/email'
 
-export const FREE_LEAD_ALLOWANCE = 3
 /** Price per lead in dollars */
 export const LEAD_PRICE = 25
 /** Price per lead in cents (for Stripe) */
 export const LEAD_PRICE_CENTS = 2500
-/** Credits consumed per lead */
-export const LEAD_PRICE_CREDITS = 1
+const LEGACY_FREE_LEAD_ALLOWANCE = 3
 
 const MAX_PROVIDERS_PER_REQUEST = 3
+const ACCEPTANCE_TOKEN_TTL_HOURS = 72
 /** How many hours must pass before a provider can receive another lead from any request. */
 const RECENT_LEAD_WINDOW_HOURS = 1
 
@@ -20,9 +21,11 @@ const RADIUS_STEPS = [25, 50, 100] as const
 export interface SelectedProvider {
   id: string
   businessName: string
+  email: string | null
+  city: string
+  state: string
   tier: ProviderTier
   leadCredits: number
-  stripeAccountBalanceCents: number
   /** The `ProviderLocation.id` of the location chosen for routing (closest to customer). */
   routingLocationId?: string
   /** Great-circle distance in miles from the customer to the matched provider location. `undefined` when no coordinates were available. */
@@ -31,41 +34,6 @@ export interface SelectedProvider {
   routingRank?: number
   /** The radius step (miles) in which this provider was found during expansion (25, 50, or 100). `undefined` for statewide fallback. */
   routingRadiusUsed?: number
-  // Allow any additional ServiceProvider fields
-  [key: string]: unknown
-}
-
-/**
- * Issues 3 free lead credits to a provider if not already issued.
- * Should be called when a provider is approved or a claim is approved.
- */
-export async function issueInitialFreeCredits(providerId: string): Promise<boolean> {
-  const provider = await prisma.serviceProvider.findUnique({
-    where: { id: providerId },
-    select: { freeLeadCreditsIssued: true },
-  })
-
-  if (!provider || provider.freeLeadCreditsIssued) return false
-
-  await prisma.$transaction([
-    prisma.serviceProvider.update({
-      where: { id: providerId },
-      data: {
-        leadCredits: { increment: FREE_LEAD_ALLOWANCE },
-        freeLeadCreditsIssued: true,
-      },
-    }),
-    prisma.leadCreditTransaction.create({
-      data: {
-        providerId,
-        amount: FREE_LEAD_ALLOWANCE,
-        type: 'FREE_CREDIT',
-        note: 'Initial free lead credits',
-      },
-    }),
-  ])
-
-  return true
 }
 
 /**
@@ -119,10 +87,8 @@ export async function selectProviders(params: {
       deletedAt: null,
       suspendedAt: null,
       providerCategory: params.category as never,
-      OR: [
-        { leadCredits: { gt: 0 } },
-        { stripeAccountBalanceCents: { gte: LEAD_PRICE_CENTS } },
-      ],
+      leadCredits: { gt: 0 },
+      email: { not: null },
     },
     include: {
       locations: {
@@ -143,6 +109,7 @@ export async function selectProviders(params: {
       provider: typeof eligible[0]
       location: ProviderLocation | null
       distanceMiles: number | null
+      withinCoverage: boolean
     }
 
     const withDistance: Candidate[] = eligible.map((provider) => {
@@ -164,10 +131,13 @@ export async function selectProviders(params: {
         minDist = calculateDistanceMiles(custLat, custLng, provider.latitude, provider.longitude)
       }
 
+      const serviceRadius = closest?.serviceRadius ?? provider.serviceRadius ?? 50
+      const withinCoverage = minDist === null || minDist <= serviceRadius
       return {
         provider,
         location: closest,
         distanceMiles: minDist,
+        withinCoverage,
       }
     })
 
@@ -177,7 +147,9 @@ export async function selectProviders(params: {
 
     for (const radius of RADIUS_STEPS) {
       // Only include providers with known distance within the radius
-      const inRadius = withDistance.filter((c) => c.distanceMiles !== null && c.distanceMiles <= radius)
+      const inRadius = withDistance.filter(
+        (c) => c.withinCoverage && c.distanceMiles !== null && c.distanceMiles <= radius
+      )
       if (inRadius.length >= MAX_PROVIDERS_PER_REQUEST) {
         selected = inRadius
         radiusUsed = radius
@@ -190,10 +162,11 @@ export async function selectProviders(params: {
       const statewide = params.state
         ? withDistance.filter(
             (c) =>
-              c.provider.state === params.state ||
-              c.provider.locations.some((l) => l.state === params.state)
+              c.withinCoverage &&
+              (c.provider.state === params.state ||
+                c.provider.locations.some((l) => l.state === params.state))
           )
-        : withDistance
+        : withDistance.filter((c) => c.withinCoverage)
       if (statewide.length > 0) {
         selected = statewide
         radiusUsed = undefined
@@ -223,7 +196,13 @@ export async function selectProviders(params: {
     }
 
     const result: SelectedProvider[] = final.map((c, i) => ({
-      ...c.provider,
+      id: c.provider.id,
+      businessName: c.provider.businessName,
+      email: c.provider.email,
+      city: c.provider.city,
+      state: c.provider.state,
+      tier: c.provider.tier,
+      leadCredits: c.provider.leadCredits,
       routingLocationId: c.location?.id,
       routingDistanceMiles: c.distanceMiles ?? undefined,
       routingRank: i + 1,
@@ -275,7 +254,13 @@ export async function selectProviders(params: {
       ? p.locations.find((l) => l.state === params.state) ?? null
       : null
     return {
-      ...p,
+      id: p.id,
+      businessName: p.businessName,
+      email: p.email,
+      city: p.city,
+      state: p.state,
+      tier: p.tier,
+      leadCredits: p.leadCredits,
       routingLocationId: stateLocation?.id,
       routingRank: i + 1,
     }
@@ -323,102 +308,48 @@ export async function createLeadsForRequest(
     return
   }
 
-  // Fetch fresh provider data to get current credit counts
-  const freshProviders = await prisma.serviceProvider.findMany({
-    where: { id: { in: newProviders.map((p) => p.id) } },
+  const serviceRequest = await prisma.serviceRequest.findUnique({
+    where: { id: serviceRequestId },
+    select: {
+      requestedCategory: true,
+      city: true,
+      state: true,
+      issueType: true,
+      breakdownNow: true,
+    },
   })
-  const freshMap = new Map(freshProviders.map((p) => [p.id, p]))
+  if (!serviceRequest) return
 
-  await Promise.all(
-    newProviders.map(async (selected) => {
-      const provider = freshMap.get(selected.id)
-      if (!provider) return
-
-      const useCredit = provider.leadCredits > 0
-      const useBalance = !useCredit && provider.stripeAccountBalanceCents >= LEAD_PRICE_CENTS
-
-      if (!useCredit && !useBalance) {
-        console.log('[leads] Skipping provider with no credits/balance', {
-          serviceRequestId,
-          providerId: provider.id,
-        })
-        return
-      }
-
-      const charged = !useCredit && useBalance
-
-      console.log('[leads] Creating lead', {
+  await Promise.all(newProviders.map(async (selected) => {
+    if (!selected.email) return
+    const token = randomBytes(32).toString('base64url')
+    const lead = await prisma.lead.create({
+      data: {
         serviceRequestId,
-        providerId: provider.id,
-        useCredit,
-        useBalance,
-        locationId: selected.routingLocationId,
-        distanceMiles: selected.routingDistanceMiles,
-      })
-
-      const leadData = {
-        serviceRequestId,
-        providerId: provider.id,
+        providerId: selected.id,
         status: LeadStatus.SENT,
         charged: false,
-        price: 0 as number,
+        price: LEAD_PRICE,
+        acceptanceTokenHash: createHash('sha256').update(token).digest('hex'),
+        acceptanceTokenExpiresAt: new Date(Date.now() + ACCEPTANCE_TOKEN_TTL_HOURS * 60 * 60 * 1000),
         providerLocationId: selected.routingLocationId ?? null,
         distanceMiles: selected.routingDistanceMiles ?? null,
         routingRank: selected.routingRank ?? null,
         routingRadiusUsed: selected.routingRadiusUsed ?? null,
-      }
-
-      if (useCredit) {
-        await prisma.$transaction([
-          prisma.lead.create({ data: leadData }),
-          prisma.serviceProvider.update({
-            where: { id: provider.id },
-            data: {
-              leadCredits: { decrement: 1 },
-              leadsReceived: { increment: 1 },
-            },
-          }),
-          prisma.leadCreditTransaction.create({
-            data: {
-              providerId: provider.id,
-              amount: -1,
-              type: 'LEAD_DEBIT',
-              note: 'Lead sent',
-            },
-          }),
-        ])
-      } else {
-        await prisma.$transaction([
-          prisma.lead.create({
-            data: { ...leadData, charged: true, price: LEAD_PRICE },
-          }),
-          prisma.serviceProvider.update({
-            where: { id: provider.id },
-            data: {
-              stripeAccountBalanceCents: { decrement: LEAD_PRICE_CENTS },
-              leadsReceived: { increment: 1 },
-              totalLeadsCharged: { increment: 1 },
-            },
-          }),
-          prisma.leadCreditTransaction.create({
-            data: {
-              providerId: provider.id,
-              amount: -1,
-              type: 'LEAD_DEBIT',
-              note: 'Lead sent using prepaid balance',
-            },
-          }),
-        ])
-      }
-
-      console.log('[leads] Lead created', {
-        serviceRequestId,
-        providerId: provider.id,
-        status: LeadStatus.SENT,
-        charged,
-      })
+      },
     })
-  )
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    await sendProviderLeadOpportunityEmail({
+      to: selected.email,
+      providerName: selected.businessName,
+      leadUrl: `${appUrl}/leads/${lead.id}/accept?token=${encodeURIComponent(token)}`,
+      category: serviceRequest.requestedCategory,
+      city: serviceRequest.city,
+      state: serviceRequest.state,
+      issueType: serviceRequest.issueType,
+      breakdownNow: serviceRequest.breakdownNow,
+    })
+  }))
 }
 
 /**
@@ -450,8 +381,7 @@ export async function getProviderLeadStats() {
   return providers.map((p) => ({
     ...p,
     category: p.providerCategory as string,
-    freeLeadsUsed: Math.max(0, FREE_LEAD_ALLOWANCE - p.freeLeadsRemaining),
+    freeLeadsUsed: Math.max(0, LEGACY_FREE_LEAD_ALLOWANCE - p.freeLeadsRemaining),
     estimatedRevenue: p.totalLeadsCharged * LEAD_PRICE,
   }))
 }
-

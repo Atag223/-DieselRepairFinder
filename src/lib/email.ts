@@ -11,6 +11,146 @@ function getResendClient() {
 const FROM = process.env.FROM_EMAIL ?? 'noreply@dieselrepairfinder.com'
 const NOTIFY = process.env.NOTIFY_EMAIL ?? 'admin@dieselrepairfinder.com'
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[character]!)
+}
+
+function redactContactDetails(value: string): string {
+  return value
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[contact details withheld]')
+    .replace(/(?:https?:\/\/|www\.)[^\s<]+|\b[\w-]+(?:\.[\w-]+)*\.(?:com|net|org|biz|us|co|io|gov|edu)\b(?:\/[^\s<]*)?/gi, '[contact details withheld]')
+    .replace(/\+?\d[\d().\s-]{6,}\d/g, '[contact details withheld]')
+}
+
+export function renderProviderLeadOpportunityEmail(data: {
+  to: string
+  providerName: string
+  leadUrl: string
+  category: string
+  city: string | null
+  state: string | null
+  issueType: string
+  breakdownNow: boolean
+}) {
+  const location = [data.city, data.state].filter(Boolean).join(', ')
+  return `
+    <h2>New service request opportunity</h2>
+    <p>Hello ${escapeHtml(data.providerName)},</p>
+    <p><strong>Service:</strong> ${escapeHtml(redactContactDetails(data.issueType))} (${escapeHtml(data.category)})</p>
+    ${location ? `<p><strong>Area:</strong> ${escapeHtml(location)}</p>` : ''}
+    <p><strong>Urgency:</strong> ${data.breakdownNow ? 'Urgent' : 'Standard'}</p>
+    <p>Customer address and request details are withheld until you accept. Acceptance costs one lead credit ($25); declining or not responding costs nothing.</p>
+    <p><a href="${escapeHtml(data.leadUrl)}">Review and respond to this request</a></p>
+    <p>This secure link expires in 72 hours.</p>
+  `
+}
+
+export async function sendProviderLeadOpportunityEmail(data: Parameters<typeof renderProviderLeadOpportunityEmail>[0]) {
+  const resend = getResendClient()
+  if (!resend) {
+    console.warn('RESEND_API_KEY not set — skipping provider lead notification')
+    return
+  }
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to: data.to,
+      subject: `[DieselRepairFinder] New ${data.category} service request`,
+      html: renderProviderLeadOpportunityEmail(data),
+    })
+  } catch (error) {
+    console.error('Failed to send provider lead notification:', error)
+  }
+}
+
+export async function sendProviderLoginEmail(data: { to: string; loginUrl: string }) {
+  const resend = getResendClient()
+  if (!resend) {
+    console.warn('RESEND_API_KEY not set — skipping provider sign-in email')
+    return
+  }
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to: data.to,
+      subject: 'Your DieselRepairFinder provider sign-in link',
+      html: `<p>Use this one-time link to securely access your provider dashboard. It expires in 15 minutes.</p><p><a href="${escapeHtml(data.loginUrl)}">Sign in to your provider account</a></p><p>If you did not request this link, you can ignore this email.</p>`,
+    })
+  } catch (error) {
+    console.error('Failed to send provider sign-in email:', error)
+  }
+}
+
+export async function sendProviderApprovalEmail(data: { to: string; businessName: string }) {
+  const resend = getResendClient()
+  if (!resend) {
+    console.warn('RESEND_API_KEY not set — skipping provider approval email')
+    return
+  }
+  const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/providers/login`
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to: data.to,
+      subject: 'Your DieselRepairFinder listing is approved',
+      html: `<p>Your listing for ${escapeHtml(data.businessName)} is approved and is now visible in the directory.</p><p>Activate your prepaid lead account to begin receiving qualified service opportunities. Your free listing remains active if you choose not to fund an account.</p><p><a href="${escapeHtml(loginUrl)}">Sign in to your provider dashboard</a></p>`,
+    })
+  } catch (error) {
+    console.error('Failed to send provider approval email:', error)
+  }
+}
+
+export async function sendPlacementRequestEmail(data: {
+  businessName: string
+  providerEmail: string
+  state: string
+  tier: 'FEATURED' | 'PREMIUM'
+}) {
+  const resend = getResendClient()
+  if (!resend) {
+    console.warn('RESEND_API_KEY not set — skipping placement request notification')
+    return
+  }
+  const annualPrice = data.tier === 'FEATURED' ? '$1,250' : '$1,500'
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to: NOTIFY,
+      subject: `[DieselRepairFinder] ${data.tier} placement checkout started for ${data.state}`,
+      html: `<h2>State placement checkout started</h2><p><strong>Business:</strong> ${escapeHtml(data.businessName)}</p><p><strong>Provider email:</strong> ${escapeHtml(data.providerEmail)}</p><p><strong>Placement:</strong> ${escapeHtml(data.tier)} in ${escapeHtml(data.state)}</p><p><strong>Annual price:</strong> ${annualPrice}</p><p>The provider is completing one-time Stripe Checkout. The placement will activate for 12 months only after Stripe verifies payment. Review the <a href="${escapeHtml(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')}/admin/placements">admin placement queue</a>.</p>`,
+    })
+  } catch (error) {
+    console.error('Failed to send placement request notification:', error)
+  }
+}
+
+export async function sendPlacementApprovalEmail(data: {
+  to: string
+  businessName: string
+  state: string
+  tier: 'FEATURED' | 'PREMIUM'
+}) {
+  const resend = getResendClient()
+  if (!resend) return
+  const price = data.tier === 'FEATURED' ? '$1,250/year' : '$1,500/year'
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to: data.to,
+      subject: `Placement request approved for ${data.state}`,
+      html: `<p>The ${escapeHtml(data.tier)} State Placement request for ${escapeHtml(data.businessName)} in ${escapeHtml(data.state)} has been approved, subject to payment.</p><p>Annual placement price: ${price}. Reply to this message to arrange payment. The placement will not display until administration confirms payment.</p>`,
+    })
+  } catch (error) {
+    console.error('Failed to send placement approval email:', error)
+  }
+}
+
 export async function sendRepairRequestEmail(data: {
   referenceId: string
   requesterName: string
@@ -36,16 +176,16 @@ export async function sendRepairRequestEmail(data: {
       subject: `[DieselRepairFinder] New Repair Request — Ref: ${data.referenceId}`,
       html: `
         <h2>New Diesel Repair Request</h2>
-        <p><strong>Reference ID:</strong> ${data.referenceId}</p>
-        <p><strong>Name:</strong> ${data.requesterName}</p>
-        ${data.requesterCompany ? `<p><strong>Company:</strong> ${data.requesterCompany}</p>` : ''}
-        <p><strong>Email:</strong> ${data.requesterEmail}</p>
-        <p><strong>Phone:</strong> ${data.requesterPhone}</p>
-        <p><strong>Service Address:</strong> ${data.serviceAddress}</p>
-        <p><strong>Issue Type:</strong> ${data.issueType}</p>
-        <p><strong>Issue Details:</strong> ${data.issueDetails}</p>
+        <p><strong>Reference ID:</strong> ${escapeHtml(data.referenceId)}</p>
+        <p><strong>Name:</strong> ${escapeHtml(data.requesterName)}</p>
+        ${data.requesterCompany ? `<p><strong>Company:</strong> ${escapeHtml(data.requesterCompany)}</p>` : ''}
+        <p><strong>Email:</strong> ${escapeHtml(data.requesterEmail)}</p>
+        <p><strong>Phone:</strong> ${escapeHtml(data.requesterPhone)}</p>
+        <p><strong>Service Address:</strong> ${escapeHtml(data.serviceAddress)}</p>
+        <p><strong>Issue Type:</strong> ${escapeHtml(data.issueType)}</p>
+        <p><strong>Issue Details:</strong> ${escapeHtml(data.issueDetails)}</p>
         <p><strong>Breakdown Now:</strong> ${data.breakdownNow ? 'YES — EMERGENCY' : 'No'}</p>
-        ${data.truckType ? `<p><strong>Truck Type:</strong> ${data.truckType}</p>` : ''}
+        ${data.truckType ? `<p><strong>Truck Type:</strong> ${escapeHtml(data.truckType)}</p>` : ''}
       `,
     })
 
@@ -58,9 +198,9 @@ export async function sendRepairRequestEmail(data: {
         <h2>We received your repair request!</h2>
         <p>Hi ${data.requesterName},</p>
         <p>Your repair request has been submitted. A mobile diesel mechanic will be in touch shortly.</p>
-        <p><strong>Reference ID:</strong> ${data.referenceId}</p>
-        <p><strong>Issue:</strong> ${data.issueType}</p>
-        <p><strong>Location:</strong> ${data.serviceAddress}</p>
+        <p><strong>Reference ID:</strong> ${escapeHtml(data.referenceId)}</p>
+        <p><strong>Issue:</strong> ${escapeHtml(data.issueType)}</p>
+        <p><strong>Location:</strong> ${escapeHtml(data.serviceAddress)}</p>
         <br/>
         <p>— Diesel Repair Finder Team</p>
       `,
@@ -116,4 +256,3 @@ export async function sendMechanicSignupEmail(data: {
     console.error('Failed to send mechanic signup email:', error)
   }
 }
-

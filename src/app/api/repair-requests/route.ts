@@ -39,8 +39,7 @@ export async function POST(request: NextRequest) {
       !requesterPhone ||
       !serviceAddress ||
       !issueType ||
-      !issueDetails ||
-      !paymentMethod
+      !issueDetails
     ) {
       return NextResponse.json(
         { error: 'Missing required fields' },
@@ -72,7 +71,7 @@ export async function POST(request: NextRequest) {
         roadsideLocation: roadsideLocation || null,
         specialNotes: specialNotes || null,
         requestedCategory: parseProviderCategory(requestedCategory),
-        paymentMethod: String(paymentMethod),
+        paymentMethod: paymentMethod ? String(paymentMethod) : 'Unknown',
         paymentNotes: paymentNotes || null,
         poNumber: poNumber || null,
         nationalAccountName: nationalAccountName || null,
@@ -120,7 +119,7 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         referenceId: serviceRequest.referenceId,
-        message: 'Your request has been submitted. A provider will contact you shortly.',
+        message: 'Your request has been submitted. Matching providers will review it, and your contact details will be shared after an eligible provider accepts.',
       },
       { status: 201 }
     )
