@@ -13,17 +13,9 @@ const US_STATES = new Set([
 ])
 const RESERVED_STATUSES = ['REQUESTED', 'APPROVED', 'ACTIVE']
 
-async function releaseExpiredPlacements(state: string, tier: ProviderTier) {
-  const now = new Date()
+async function expireActivePlacements(state: string, tier: ProviderTier) {
   await prisma.listingPlacement.updateMany({
-    where: {
-      state,
-      tier,
-      OR: [
-        { status: 'ACTIVE', expiresAt: { lte: now } },
-        { status: 'REQUESTED', paymentStatus: 'PENDING', checkoutExpiresAt: { lte: now } },
-      ],
-    },
+    where: { state, tier, status: 'ACTIVE', expiresAt: { lte: new Date() } },
     data: { status: 'EXPIRED' },
   })
 }
@@ -74,7 +66,7 @@ export async function GET(request: NextRequest) {
       OR: [
         { status: 'APPROVED' },
         { status: 'ACTIVE', OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
-        { status: 'REQUESTED', OR: [{ checkoutExpiresAt: null }, { checkoutExpiresAt: { gt: now } }] },
+        { status: 'REQUESTED' },
       ],
     },
     select: { id: true },
@@ -120,7 +112,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Select a state where your provider business has an active service location.' }, { status: 400 })
   }
 
-  await releaseExpiredPlacements(state, tier)
+  await expireActivePlacements(state, tier)
   const existing = await prisma.listingPlacement.findFirst({
     where: { state, tier, status: { in: RESERVED_STATUSES } },
     select: { id: true },

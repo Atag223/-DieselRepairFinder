@@ -28,44 +28,41 @@ function redactContactDetails(value: string): string {
     .replace(/\+?\d[\d().\s-]{6,}\d/g, '[contact details withheld]')
 }
 
-export async function sendProviderLeadOpportunityEmail(data: {
+export function renderProviderLeadOpportunityEmail(data: {
   to: string
   providerName: string
   leadUrl: string
   category: string
   city: string | null
   state: string | null
-  serviceAddress: string
   issueType: string
-  issueDetails: string
   breakdownNow: boolean
-  truckType: string | null
 }) {
+  const location = [data.city, data.state].filter(Boolean).join(', ')
+  return `
+    <h2>New service request opportunity</h2>
+    <p>Hello ${escapeHtml(data.providerName)},</p>
+    <p><strong>Service:</strong> ${escapeHtml(redactContactDetails(data.issueType))} (${escapeHtml(data.category)})</p>
+    ${location ? `<p><strong>Area:</strong> ${escapeHtml(location)}</p>` : ''}
+    <p><strong>Urgency:</strong> ${data.breakdownNow ? 'Urgent' : 'Standard'}</p>
+    <p>Customer address and request details are withheld until you accept. Acceptance costs one lead credit ($25); declining or not responding costs nothing.</p>
+    <p><a href="${escapeHtml(data.leadUrl)}">Review and respond to this request</a></p>
+    <p>This secure link expires in 72 hours.</p>
+  `
+}
+
+export async function sendProviderLeadOpportunityEmail(data: Parameters<typeof renderProviderLeadOpportunityEmail>[0]) {
   const resend = getResendClient()
   if (!resend) {
     console.warn('RESEND_API_KEY not set — skipping provider lead notification')
     return
   }
-
-  const location = [data.city, data.state].filter(Boolean).join(', ')
-  const details = escapeHtml(redactContactDetails(data.issueDetails))
   try {
     await resend.emails.send({
       from: FROM,
       to: data.to,
       subject: `[DieselRepairFinder] New ${data.category} service request`,
-      html: `
-        <h2>New service request opportunity</h2>
-        <p>Hello ${escapeHtml(data.providerName)},</p>
-        <p><strong>Service:</strong> ${escapeHtml(data.issueType)} (${escapeHtml(data.category)})</p>
-        <p><strong>Location:</strong> ${escapeHtml(redactContactDetails(data.serviceAddress))}${location ? `, ${escapeHtml(location)}` : ''}</p>
-        ${data.truckType ? `<p><strong>Equipment:</strong> ${escapeHtml(redactContactDetails(data.truckType))}</p>` : ''}
-        <p><strong>Urgency:</strong> ${data.breakdownNow ? 'Urgent' : 'Standard'}</p>
-        <p><strong>Request details:</strong><br/>${details}</p>
-        <p>Customer contact details are withheld until you accept. Acceptance costs one lead credit ($25); declining or not responding costs nothing.</p>
-        <p><a href="${escapeHtml(data.leadUrl)}">Review and respond to this request</a></p>
-        <p>This secure link expires in 72 hours.</p>
-      `,
+      html: renderProviderLeadOpportunityEmail(data),
     })
   } catch (error) {
     console.error('Failed to send provider lead notification:', error)

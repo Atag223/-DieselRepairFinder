@@ -314,11 +314,8 @@ export async function createLeadsForRequest(
       requestedCategory: true,
       city: true,
       state: true,
-      serviceAddress: true,
       issueType: true,
-      issueDetails: true,
       breakdownNow: true,
-      truckType: true,
     },
   })
   if (!serviceRequest) return
@@ -349,11 +346,8 @@ export async function createLeadsForRequest(
       category: serviceRequest.requestedCategory,
       city: serviceRequest.city,
       state: serviceRequest.state,
-      serviceAddress: serviceRequest.serviceAddress,
       issueType: serviceRequest.issueType,
-      issueDetails: serviceRequest.issueDetails,
       breakdownNow: serviceRequest.breakdownNow,
-      truckType: serviceRequest.truckType,
     })
   }))
 }

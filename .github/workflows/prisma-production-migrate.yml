@@ -2,15 +2,6 @@ name: Prisma Production migrations
 
 on:
   workflow_dispatch:
-    inputs:
-      verify_only:
-        description: "Only check migration status (no migrations applied)"
-        type: boolean
-        default: true
-      confirmation:
-        description: "To apply, type APPLY PRODUCTION MIGRATIONS"
-        type: string
-        default: ""
 
 permissions:
   contents: read
@@ -28,8 +19,6 @@ jobs:
       DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
       DIRECT_URL: ${{ secrets.PRODUCTION_DIRECT_URL }}
       PRODUCTION_PROJECT_REF: ${{ vars.PRODUCTION_SUPABASE_PROJECT_REF }}
-      VERIFY_ONLY: ${{ inputs.verify_only }}
-      CONFIRMATION: ${{ inputs.confirmation }}
       CHECKPOINT_DISABLE: "1"
       NO_COLOR: "1"
     steps:
@@ -53,11 +42,6 @@ jobs:
           const ref = process.env.PRODUCTION_PROJECT_REF;
           if (!/^[a-z0-9]{20}$/.test(ref || "")) {
             fail("Set PRODUCTION_SUPABASE_PROJECT_REF to the independently verified Production project reference.");
-          }
-          if (!["true", "false"].includes(process.env.VERIFY_ONLY) ||
-              (process.env.VERIFY_ONLY === "false" &&
-               process.env.CONFIRMATION !== "APPLY PRODUCTION MIGRATIONS")) {
-            fail("Applying migrations requires explicit confirmation.");
           }
           for (const name of ["DATABASE_URL", "DIRECT_URL"]) {
             try {
@@ -127,38 +111,5 @@ jobs:
             }
             console.log(`${names.length} pending migration(s) found in this checkout.`);
           }
-          console.log(process.env.VERIFY_ONLY === "true"
-            ? "Verification only: no migrations will be applied."
-            : "Verification passed; proceeding to explicitly approved migrations.");
-          NODE
-
-      - name: Apply pending Production migrations
-        if: ${{ !inputs.verify_only }}
-        shell: bash
-        run: |
-          node <<'NODE'
-          const { spawnSync } = require("node:child_process");
-          const result = spawnSync("npx", ["--no-install", "prisma", "migrate", "deploy"], { encoding: "utf8" });
-          if (result.status !== 0) {
-            console.error("Production migrate deploy failed. Stop and investigate privately; migrations may have partially applied. Do not blindly retry.");
-            process.exit(1);
-          }
-          console.log("Production prisma migrate deploy completed successfully.");
-          NODE
-
-      - name: Verify Production migration history after deploy
-        if: ${{ !inputs.verify_only }}
-        shell: bash
-        run: |
-          node <<'NODE'
-          const { spawnSync } = require("node:child_process");
-          const { appendFileSync } = require("node:fs");
-          const result = spawnSync("npx", ["--no-install", "prisma", "migrate", "status"], { encoding: "utf8" });
-          if (result.status !== 0 || !result.stdout.includes("Database schema is up to date!")) {
-            console.error("Post-deploy status verification failed. Do not merge or deploy the app until investigated.");
-            process.exit(1);
-          }
-          console.log("Production migration history is up to date. No pending migrations remain.");
-          appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-            "Production migration deploy completed and post-deploy status reports no pending migrations.\n");
+          console.log("Read-only status verification only; this workflow cannot apply migrations.");
           NODE

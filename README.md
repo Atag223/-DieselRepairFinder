@@ -220,9 +220,9 @@ npm start
 ## Manual Production database migrations
 
 `.github/workflows/prisma-production-migrate.yml` is **manual-only**. It never
-deploys the app. Verification-only mode is selected by default and does not apply
-migrations. Applying uses the locked Prisma 5 CLI and only `prisma migrate deploy`;
-it does not reset, seed, push a schema, or automatically resolve migration history.
+deploys the app and is currently **status-only**: it runs `prisma migrate status`
+and has no migration-apply step. A status result checks the migration ledger, not
+live-schema drift, and does not authorize a rollout.
 
 ### One-time setup (repository administrator)
 
@@ -258,28 +258,29 @@ Never paste credentials into workflow inputs, source files, screenshots or logs.
 
 ### Run using GitHub only
 
-**Prerequisite:** GitHub requires this workflow file to exist on default branch
-The guarded workflow remains manual-only, with verification-only selected by
-default and explicit confirmation required before it can apply migrations.
-**Do not run this workflow against Production or the existing Preview database
-for this PR.** Production has no verified Prisma baseline, and the historical
-migration chain does not create its foundation tables. The workflow does not
-apply or validate the candidate reconciliation SQL, and `migrate status` cannot
-detect live-schema drift.
+Do not run a migration workflow or change a database as part of this PR. The
+checked-in workflow cannot apply migrations. Production has no verified Prisma
+baseline, and the historical migration chain does not create its foundation
+tables. `migrate status` cannot detect live-schema drift.
 
 Before any future Production rollout, follow
 [Production schema reconciliation](prisma/reconciliation/README.md): obtain an
 isolated restore or new rehearsal project, capture and review its complete
-baseline, reconcile and rehearse the migration history and candidate SQL there,
-and obtain separate approval for a reviewed follow-up. Do not use the existing
-Preview project as a rehearsal database. Nothing in this PR authorizes or
-performs a Production or Preview database change.
+baseline, archive the incomplete historical migration root, and create a
+baseline that exactly matches the restored schema. Record that baseline as
+applied on the clone only; then rehearse the three PR migrations in timestamp
+order and the reviewed reconciliation SQL as an active migration. Compare schema,
+row counts, and IDs to the snapshot and test with non-live Stripe/email
+credentials. Only after successful rehearsal should a separately reviewed and
+approved Production migration plan be prepared. Do not use the existing Preview
+project as a rehearsal database. Nothing in this PR authorizes or performs a
+Production or Preview database change.
 
 Prisma output is captured rather than printed, including on failure, because
 database connection errors may expose sensitive URL details in this public repo.
-If verification or deployment fails, stop and have a database maintainer inspect
-the database privately. An interrupted/failed migration may have partially applied;
-do not blindly retry, baseline, reset or mark migrations resolved.
+If a future status check fails, stop and have a database maintainer inspect the
+database privately. Do not blindly retry, baseline, reset or mark migrations
+resolved.
 
 ### Migration-history risks checked before implementation
 
@@ -287,8 +288,9 @@ do not blindly retry, baseline, reset or mark migrations resolved.
   PR #34 includes the eight earlier migrations and adds, in order:
   `20261017000000_lead_acceptance_and_listing_privacy`,
   `20261017010000_provider_accounts_and_placements`, and
-  `20261017020000_stripe_placement_checkout`. The workflow requires these three
-  files and uses the selected checkout's entire `prisma/migrations` history.
+  `20261017020000_stripe_placement_checkout`. The status-only workflow requires
+  these three files and uses the selected checkout's entire `prisma/migrations`
+  history.
 - There is **no `prisma/migrations/migration_lock.toml`**. Existing migration
   files are left untouched; a maintainer should confirm the intended PostgreSQL
   migration lineage before execution.

@@ -37,7 +37,6 @@ async function completePlacementCheckout(session: Stripe.Checkout.Session) {
         paymentStatus: true,
         amountCents: true,
         stripeCheckoutSessionId: true,
-        checkoutExpiresAt: true,
         provider: { select: { stripeCustomerId: true } },
       },
     })
@@ -57,24 +56,15 @@ async function completePlacementCheckout(session: Stripe.Checkout.Session) {
     }
     if (
       placement.status !== 'REQUESTED' ||
-      placement.paymentStatus !== 'PENDING' ||
-      !placement.checkoutExpiresAt ||
-      placement.checkoutExpiresAt <= new Date()
+      placement.paymentStatus !== 'PENDING'
     ) {
       throw new Error('Placement reservation has expired or is no longer available')
     }
 
     const now = new Date()
+    // A completed event may arrive late; pending reservations are released only by Stripe's expired event.
     await transaction.listingPlacement.updateMany({
-      where: {
-        state,
-        tier,
-        id: { not: placementId },
-        OR: [
-          { status: 'ACTIVE', expiresAt: { lte: now } },
-          { status: 'REQUESTED', paymentStatus: 'PENDING', checkoutExpiresAt: { lte: now } },
-        ],
-      },
+      where: { state, tier, id: { not: placementId }, status: 'ACTIVE', expiresAt: { lte: now } },
       data: { status: 'EXPIRED' },
     })
     const conflict = await transaction.listingPlacement.findFirst({
@@ -85,7 +75,7 @@ async function completePlacementCheckout(session: Stripe.Checkout.Session) {
         OR: [
           { status: 'APPROVED' },
           { status: 'ACTIVE', OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
-          { status: 'REQUESTED', OR: [{ checkoutExpiresAt: null }, { checkoutExpiresAt: { gt: now } }] },
+          { status: 'REQUESTED' },
         ],
       },
       select: { id: true },
@@ -104,7 +94,6 @@ async function completePlacementCheckout(session: Stripe.Checkout.Session) {
         status: 'REQUESTED',
         paymentStatus: 'PENDING',
         stripeCheckoutSessionId: session.id,
-        checkoutExpiresAt: { gt: now },
       },
       data: {
         status: 'ACTIVE',
