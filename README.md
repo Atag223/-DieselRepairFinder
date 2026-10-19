@@ -13,6 +13,9 @@ A production-ready MVP marketplace connecting users with mobile diesel mechanics
 - **Mechanic Signup** — `/join` page with full application form
 - **API Routes** — `POST /api/repair-requests` and `POST /api/mechanics/apply`
 - **Email Notifications** — Via [Resend](https://resend.com) on new requests and signups
+- **Provider Accounts** — Approved providers use emailed one-time sign-in links to fund credits and view account history
+- **Lead Credits** — Stripe prepaid packages; verified webhooks grant credits and first-purchase bonuses
+- **State Placements** — Eligible Featured/Premium placements are paid through one-time Stripe Checkout and activate after verified payment
 - **Dark Theme** — Black background with blue accents, mobile responsive
 
 ---
@@ -60,11 +63,22 @@ NOTIFY_EMAIL="admin@dieselrepairfinder.com"
 FROM_EMAIL="noreply@dieselrepairfinder.com"
 ```
 
-### 3. Set Up the Database
+### 3. Set Up a Local Development Database
+
+Use a new, disposable **local** PostgreSQL database. Set both `DATABASE_URL` and
+`DIRECT_URL` in `.env` to that local database before running any Prisma command.
+The checked-in migration history is not a fresh-database bootstrap: its earliest
+migrations assume foundation tables already exist. For local development, create
+the schema from `schema.prisma` with:
 
 ```bash
-npx prisma migrate dev --name init
+npx prisma db push
 ```
+
+This is for the isolated local database only; it does not create migration
+history. Do not point it, `migrate dev`, or `migrate deploy` at Production or the
+existing Preview database. See [Production schema reconciliation](prisma/reconciliation/README.md)
+for the required audit and isolated-clone rehearsal before any future rollout.
 
 ### 4. Run Locally
 
@@ -73,6 +87,58 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
+
+### Provider funding and placement operations
+
+Configure `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and `NEXT_PUBLIC_APP_URL`. The Stripe webhook
+endpoint is `/api/stripe/webhook`; subscribe it to `checkout.session.completed` and
+`checkout.session.expired`. Credit purchases and one-time annual Featured/Premium placements use
+provider-bound Stripe Checkout Sessions. Credits and placements are fulfilled only by the verified
+webhook. Placement checkout reserves an eligible state/tier and activates for 12 months after payment;
+it does not create a recurring subscription. Providers must sign in to their approved account with
+an emailed one-time link before checkout.
+
+In Vercel, set Stripe test-mode `STRIPE_SECRET_KEY` and the signing secret for a Stripe test webhook
+in Preview scope. Configure a test-mode endpoint for each stable Preview URL that needs checkout.
+Use Stripe live-mode credentials and the production webhook signing secret in Production scope only
+when production is ready. Set `NEXT_PUBLIC_APP_URL` to the matching Preview or Production origin;
+do not reuse webhook signing secrets across endpoints or modes. The webhook's secret must correspond
+to the endpoint and mode sending events. Do not enable these features against Production or the
+existing Preview database until a complete baseline and isolated rehearsal are reviewed and a
+separate rollout is approved.
+
+### Private HydroVacFinder provider discovery
+
+`GET /api/internal/hvf/emergency-providers` is a private server-to-server API. HydroVacFinder must
+send `x-hvf-api-key` with the value of DieselRepairFinder's `HVF_INTERNAL_API_KEY`; keep that key in
+server-only environment settings on both applications and never call this route directly from a
+browser. Missing or invalid credentials receive `401`; a missing server key receives `500`.
+
+The API returns matching active providers that are not suspended or deleted, including FREE,
+unverified, and Google Places-imported listings, subject to the requested result limit (50 by default,
+100 maximum). Lead-credit balance, listing approval, and public
+contact-display rules do not control this private discovery endpoint. Authenticated results include
+provider and active-branch contact details, category/services, and geographic data. Existing response
+fields (`id`, `name`, `category`, `city`, `state`, `address`, `primaryCity`, `primaryState`,
+`locationMismatch`, `services`, `is24_7`, `tier`, `verificationStatus`, `rating`, `distanceMiles`,
+`distanceFromMainAddress`, `nearestLocation`, `source`, `serviceRequestUrl`, and `meta`) remain
+available; contact fields and full active `locations` are additive. The response is still provider
+discovery only: public customers must submit repair requests through DieselRepairFinder.
+
+Optional query parameters are `city`, `state`, `category`, `latitude`, `longitude`, `radiusMiles`,
+and `limit` (50 by default, 100 maximum). Category matches the `ProviderCategory` enum. City and
+state search both the primary provider address and active branch locations. Supplying both
+coordinates ranks by the nearest primary or active-branch coordinate, filters to the requested radius
+(100 miles by default), and only then applies the result limit. Omitting location filters allows
+nationwide search.
+
+The `tests/hvf-emergency-providers.test.ts` suite protects provider eligibility, private response
+fields, branch matching, and distance ranking. For HydroVacFinder-side compatibility, verify its
+server sends the `x-hvf-api-key` header and reads the existing `providers` array and established
+fields without assuming the new contact/location fields are absent. Also run an authenticated end-to-
+end search for each supported provider category with no geographic filters, a city/state filter, and
+an origin/radius around a provider that has multiple active locations. This repository cannot verify
+the HydroVacFinder consumer behavior without its source/configuration and test credentials.
 
 ---
 
@@ -193,40 +259,21 @@ Never paste credentials into workflow inputs, source files, screenshots or logs.
 ### Run using GitHub only
 
 **Prerequisite:** GitHub requires this workflow file to exist on default branch
-`main` before its **Run workflow** button is available. This workflow-only PR
-does not itself include PR #34's application or migration changes. Once an
-administrator approves adding the workflow to `main`, also put the same reviewed
-workflow on the branch containing PR #34's complete migration history. This can
-be done in GitHub's file editor: select that branch under **Code**, choose
-**Add file → Create new file**, enter `.github/workflows/prisma-production-migrate.yml`,
-copy the reviewed workflow verbatim, and commit it to that branch (or use a
-reviewed follow-up PR if branch rules require one). Do not run it from `main`
-while `main` lacks those migrations. Nothing is merged or executed by preparing
-this workflow.
+The guarded workflow remains manual-only, with verification-only selected by
+default and explicit confirmation required before it can apply migrations.
+**Do not run this workflow against Production or the existing Preview database
+for this PR.** Production has no verified Prisma baseline, and the historical
+migration chain does not create its foundation tables. The workflow does not
+apply or validate the candidate reconciliation SQL, and `migrate status` cannot
+detect live-schema drift.
 
-1. Open **Actions → Prisma Production migrations → Run workflow**.
-2. In **Use workflow from / Branch**, select the **reviewed branch containing both
-   the workflow and all pending migrations**. For PR #34, its current head branch
-   is `copilot/align-prepaid-lead-credit-packages`, based on PR #33.
-   Do not select this workflow-only PR branch; the missing-migrations guard
-   deliberately rejects it. The checkout is pinned to the selected run's commit,
-   never hardcoded to `main` or a moving application branch.
-3. Leave **Only check migration status** checked and confirmation empty.
-   Click **Run workflow**. If prompted, open the run → **Review deployments** →
-   select `production` → **Approve and deploy** (GitHub's label approves this job,
-   not an application deployment).
-4. Open the run → `migrate`. Verify the selected ref/commit, the successful target
-   guard, and **Read-only migration status**, which reports pending migrations or
-   an up-to-date history. Review the SQL files at that exact commit before writes.
-5. After reviewing backups, migration risks and the dry verification, repeat
-   **Run workflow** on the **same reviewed commit/branch** (check it has not changed).
-   Uncheck verification-only, type `APPLY PRODUCTION MIGRATIONS`, click
-   **Run workflow**, and approve the environment again if required.
-6. Success requires a green run, **Apply pending Production migrations** reporting
-   completion, and **Verify Production migration history after deploy** reporting
-   **No pending migrations remain**. The run summary confirms this too. A green
-   verification-only run is **not** proof that migrations were applied.
-   Only then consider merging/deploying PR #33/#34 separately, with approval.
+Before any future Production rollout, follow
+[Production schema reconciliation](prisma/reconciliation/README.md): obtain an
+isolated restore or new rehearsal project, capture and review its complete
+baseline, reconcile and rehearse the migration history and candidate SQL there,
+and obtain separate approval for a reviewed follow-up. Do not use the existing
+Preview project as a rehearsal database. Nothing in this PR authorizes or
+performs a Production or Preview database change.
 
 Prisma output is captured rather than printed, including on failure, because
 database connection errors may expose sensitive URL details in this public repo.
@@ -245,6 +292,10 @@ do not blindly retry, baseline, reset or mark migrations resolved.
 - There is **no `prisma/migrations/migration_lock.toml`**. Existing migration
   files are left untouched; a maintainer should confirm the intended PostgreSQL
   migration lineage before execution.
+- Production currently has no verified Prisma migration ledger or complete
+  baseline. The candidate SQL in `prisma/reconciliation/` is an audit-dependent
+  artifact for isolated rehearsal, not an executable migration or a substitute
+  for that baseline.
 - The earliest migration alters existing `DieselMechanic` and
   `DieselRepairRequest` tables instead of creating a complete initial schema.
   This is **not an empty-database bootstrap**. Confirm Production has the expected
@@ -283,16 +334,12 @@ API across 5 major cities in every US state.
 GOOGLE_PLACES_API_KEY="your_google_places_api_key_here"
 ```
 
-### 3. Apply the Database Migration
+### 3. Prepare a Local Development Database
 
-The script requires three new columns on `ServiceProvider`. Apply the migration
-before running the seed:
-
-```bash
-npx prisma migrate deploy
-# or, in development:
-npx prisma migrate dev
-```
+Use only the disposable local database configured in Getting Started. The local
+`prisma db push` step above creates the schema from the Prisma model before you
+run the seed. Do not use this script or the following commands with Production
+or the existing Preview database.
 
 ### 4. Run the Seed Script
 

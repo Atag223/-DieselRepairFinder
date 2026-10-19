@@ -159,7 +159,7 @@ export default function AdminProviderActions({ providerId, isActive, isSuspended
                 onClick={handleApproveClaim}
                 disabled={loading}
                 className="text-xs px-2.5 py-1 rounded bg-blue-900/60 hover:bg-blue-800 text-blue-300 transition-colors disabled:opacity-50"
-                title="Approve claim & issue free credits"
+                title="Approve provider claim"
               >
                 Approve Claim
               </button>

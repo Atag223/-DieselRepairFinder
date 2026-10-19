@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { prisma } from '@/lib/prisma'
 import { BILLING_PACKAGES } from '@/lib/billing'
+import { isProviderSessionValid, PROVIDER_SESSION_COOKIE } from '@/lib/provider-auth'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -12,13 +13,26 @@ export async function POST(request: NextRequest, { params }: Params) {
   }
 
   const { id } = await params
+  if (!(await isProviderSessionValid(id, request.cookies.get(PROVIDER_SESSION_COOKIE)?.value))) {
+    return NextResponse.json({ error: 'Sign in to your approved provider account to buy credits.' }, { status: 401 })
+  }
 
   const provider = await prisma.serviceProvider.findUnique({
     where: { id },
-    select: { id: true, businessName: true, email: true, stripeCustomerId: true, deletedAt: true },
+    select: {
+      id: true,
+      businessName: true,
+      email: true,
+      stripeCustomerId: true,
+      deletedAt: true,
+      active: true,
+      approvedAt: true,
+      suspendedAt: true,
+      promotionalBonusUsed: true,
+    },
   })
 
-  if (!provider || provider.deletedAt) {
+  if (!provider || provider.deletedAt || !provider.active || !provider.approvedAt || provider.suspendedAt) {
     return NextResponse.json({ error: 'Provider not found' }, { status: 404 })
   }
 
@@ -49,20 +63,33 @@ export async function POST(request: NextRequest, { params }: Params) {
       name: provider.businessName,
       metadata: { providerId: provider.id },
     })
-    stripeCustomerId = customer.id
-    await prisma.serviceProvider.update({
-      where: { id },
-      data: { stripeCustomerId },
+    const savedCustomer = await prisma.serviceProvider.updateMany({
+      where: { id, stripeCustomerId: null },
+      data: { stripeCustomerId: customer.id },
     })
+    if (savedCustomer.count === 1) {
+      stripeCustomerId = customer.id
+    } else {
+      const currentProvider = await prisma.serviceProvider.findUnique({
+        where: { id },
+        select: { stripeCustomerId: true },
+      })
+      if (!currentProvider?.stripeCustomerId) {
+        return NextResponse.json({ error: 'Could not initialize billing account' }, { status: 500 })
+      }
+      stripeCustomerId = currentProvider.stripeCustomerId
+    }
   }
 
   const bonusDesc =
-    pkg.bonusCredits > 0
+    pkg.bonusCredits > 0 && !provider.promotionalBonusUsed
       ? ` + ${pkg.bonusCredits} bonus credit${pkg.bonusCredits > 1 ? 's' : ''}`
       : ''
+  const creditsOnPurchase = pkg.paidCredits + (provider.promotionalBonusUsed ? 0 : pkg.bonusCredits)
 
   const session = await stripe.checkout.sessions.create({
     customer: stripeCustomerId,
+    client_reference_id: provider.id,
     payment_method_types: ['card'],
     mode: 'payment',
     line_items: [
@@ -71,22 +98,19 @@ export async function POST(request: NextRequest, { params }: Params) {
           currency: 'usd',
           unit_amount: pkg.amountCents,
           product_data: {
-            name: `DieselRepairFinder – ${pkg.name} (${pkg.awardedCredits} lead credits)`,
-            description: `${pkg.paidCredits} paid leads${bonusDesc}. Credits used only when you accept a qualified lead.`,
+            name: `DieselRepairFinder – ${pkg.name} (${creditsOnPurchase} lead credits)`,
+            description: `${pkg.paidCredits} base lead credits${bonusDesc} on your first qualifying purchase. Credits are used only when you accept a qualified lead.`,
           },
         },
         quantity: 1,
       },
     ],
     metadata: {
+      purchaseType: 'lead_credits',
       providerId: provider.id,
       packageKey: pkg.key,
-      paidCredits: String(pkg.paidCredits),
-      awardedCredits: String(pkg.awardedCredits),
-      bonusCredits: String(pkg.bonusCredits),
-      amountCents: String(pkg.amountCents),
     },
-    success_url: `${appUrl}/providers/${provider.id}/billing?success=1`,
+    success_url: `${appUrl}/providers/${provider.id}/billing?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${appUrl}/providers/${provider.id}/billing?cancelled=1`,
   })
 

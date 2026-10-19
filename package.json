@@ -8,6 +8,7 @@
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "next lint",
+    "test": "tsx --test tests/*.test.ts",
     "seed:providers": "tsx scripts/seed-providers-from-google.ts"
   },
   "dependencies": {

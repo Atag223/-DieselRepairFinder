@@ -28,6 +28,7 @@ export default function NewProviderPage() {
     phone: '',
     email: '',
     website: '',
+    description: '',
     serviceRadius: '',
     services: '',
     notes: '',
@@ -245,6 +246,16 @@ export default function NewProviderPage() {
                 <option value="FEATURED">Featured</option>
                 <option value="PREMIUM">Premium</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Public company description</label>
+              <textarea
+                value={form.description}
+                onChange={(e) => set('description', e.target.value)}
+                rows={3}
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 text-sm resize-none"
+              />
             </div>
 
             <div>
