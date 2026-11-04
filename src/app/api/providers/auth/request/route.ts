@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { issueProviderLoginLink } from '@/lib/provider-auth'
+import { getProviderLoginEmail } from '@/lib/provider-account'
 
 export async function POST(request: NextRequest) {
   let email: unknown
@@ -13,17 +14,42 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 })
   }
 
-  const provider = await prisma.serviceProvider.findFirst({
+  const normalizedEmail = email.trim().toLowerCase()
+  const eligibility = {
+    active: true,
+    approvedAt: { not: null },
+    suspendedAt: null,
+    deletedAt: null,
+  }
+  const accounts = await prisma.serviceProvider.findMany({
     where: {
-      email: { equals: email.trim(), mode: 'insensitive' },
-      active: true,
-      approvedAt: { not: null },
-      suspendedAt: null,
-      deletedAt: null,
+      ...eligibility,
+      OR: [
+        {
+          claimedByEmail: { equals: normalizedEmail, mode: 'insensitive' },
+          claimRequests: {
+            some: {
+              email: { equals: normalizedEmail, mode: 'insensitive' },
+              status: 'APPROVED',
+              emailVerifiedAt: { not: null },
+            },
+          },
+        },
+        {
+          claimedByEmail: null,
+          email: { equals: normalizedEmail, mode: 'insensitive' },
+        },
+      ],
     },
-    select: { id: true, email: true },
+    select: { id: true, email: true, claimedByEmail: true },
+    take: 2,
   })
-  if (provider?.email) await issueProviderLoginLink(provider.id, provider.email)
+  if (accounts.length === 1) {
+    const loginEmail = getProviderLoginEmail(accounts[0], normalizedEmail)
+    if (loginEmail) await issueProviderLoginLink(accounts[0].id, loginEmail)
+  } else if (accounts.length > 1) {
+    console.error('Provider sign-in blocked: multiple approved claims share one login email')
+  }
 
   return NextResponse.json({
     success: true,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendMechanicSignupEmail } from '@/lib/email'
-import { isValidEmail, parseServices, parseProviderCategory } from '@/lib/validation'
+import { isValidEmail, parseServices, parseProviderCategory, validateAdditionalLocations } from '@/lib/validation'
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,8 +37,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
     }
 
+    const additionalLocationValidation = validateAdditionalLocations(additionalLocations)
+    if ('error' in additionalLocationValidation) {
+      return NextResponse.json({ error: additionalLocationValidation.error }, { status: 400 })
+    }
+
     // Check for duplicate email
-    const existing = await prisma.serviceProvider.findUnique({ where: { email } })
+    const existing = await prisma.serviceProvider.findUnique({ where: { email: email.trim().toLowerCase() } })
     if (existing) {
       return NextResponse.json(
         { error: 'An application with this email already exists.' },
@@ -46,34 +51,58 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const provider = await prisma.serviceProvider.create({
-      data: {
-        businessName,
-        contactName,
-        phone,
-        email,
-        city,
-        state,
-        serviceRadius: serviceRadius ? Number(serviceRadius) : null,
-        website: website || null,
-        description: description || null,
-        is24_7: Boolean(is24_7),
-        services: parseServices(services),
-        notes: notes || null,
-        providerCategory: parseProviderCategory(providerCategory),
-        // Application flow defaults — inactive until admin approves
-        active: false,
-        verificationStatus: 'UNVERIFIED',
-        claimStatus: 'PENDING',
-        tier: 'FREE',
-        source: 'MANUAL',
-      },
+    const normalizedEmail = email.trim().toLowerCase()
+    const provider = await prisma.$transaction(async (tx) => {
+      const createdProvider = await tx.serviceProvider.create({
+        data: {
+          businessName: businessName.trim(),
+          contactName: contactName.trim(),
+          phone: phone.trim(),
+          email: normalizedEmail,
+          city: city.trim(),
+          state: state.trim().toUpperCase(),
+          serviceRadius: serviceRadius ? Number(serviceRadius) : null,
+          website: website || null,
+          description: description || null,
+          is24_7: Boolean(is24_7),
+          services: parseServices(services),
+          notes: notes || null,
+          providerCategory: parseProviderCategory(providerCategory),
+          active: false,
+          verificationStatus: 'UNVERIFIED',
+          claimStatus: 'PENDING',
+          tier: 'FREE',
+          source: 'MANUAL',
+        },
+      })
+
+      await tx.providerLocation.createMany({
+        data: [
+          {
+            providerId: createdProvider.id,
+            city: createdProvider.city,
+            state: createdProvider.state,
+            serviceRadius: createdProvider.serviceRadius ?? 50,
+            phone: createdProvider.phone,
+            contactName: createdProvider.contactName,
+            isPrimary: true,
+            active: true,
+          },
+          ...additionalLocationValidation.locations.map((location) => ({
+            providerId: createdProvider.id,
+            city: location.city,
+            state: location.state,
+            serviceRadius: location.serviceRadius,
+            phone: location.phone,
+            isPrimary: false,
+            active: true,
+          })),
+        ],
+      })
+      return createdProvider
     })
 
-    // Send email notifications (non-blocking)
-    // contactName, email, and phone are validated as required fields above,
-    // so they are guaranteed to be non-null at this point.
-    sendMechanicSignupEmail({
+    const notificationResult = await sendMechanicSignupEmail({
       businessName: provider.businessName,
       contactName: provider.contactName!,
       email: provider.email!,
@@ -81,53 +110,12 @@ export async function POST(request: NextRequest) {
       city: provider.city,
       state: provider.state,
     })
-
-    // Create primary ProviderLocation from the main city/state/serviceRadius
-    const locationCreates = [
-      prisma.providerLocation.create({
-        data: {
-          providerId: provider.id,
-          city: provider.city,
-          state: provider.state,
-          serviceRadius: provider.serviceRadius ?? 50,
-          phone: provider.phone ?? null,
-          contactName: provider.contactName ?? null,
-          isPrimary: true,
-          active: true,
-        },
-      }),
-    ]
-
-    // Additional locations: validate and cap at 3
-    const rawAdditionalLocations: Array<{ city?: string; state?: string; serviceRadius?: number; phone?: string }> =
-      Array.isArray(additionalLocations) ? additionalLocations : []
-    if (rawAdditionalLocations.length > 3) {
-      return NextResponse.json(
-        { error: 'A maximum of 3 additional locations are allowed.' },
-        { status: 400 }
-      )
+    if (!notificationResult.adminNotified || !notificationResult.applicantNotified) {
+      console.error('Provider application email delivery incomplete', {
+        providerId: provider.id,
+        ...notificationResult,
+      })
     }
-    const extraLocations = rawAdditionalLocations
-
-    for (const loc of extraLocations) {
-      if (loc.city && loc.state) {
-        locationCreates.push(
-          prisma.providerLocation.create({
-            data: {
-              providerId: provider.id,
-              city: loc.city,
-              state: loc.state,
-              serviceRadius: loc.serviceRadius ? Number(loc.serviceRadius) : 50,
-              phone: loc.phone || null,
-              isPrimary: false,
-              active: true,
-            },
-          })
-        )
-      }
-    }
-
-    await Promise.all(locationCreates)
 
     return NextResponse.json(
       {

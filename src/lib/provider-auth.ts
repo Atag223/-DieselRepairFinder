@@ -28,10 +28,15 @@ export async function issueProviderLoginLink(providerId: string, email: string) 
   })
   const { sendProviderLoginEmail } = await import('@/lib/email')
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-  await sendProviderLoginEmail({
+  const sent = await sendProviderLoginEmail({
     to: email,
     loginUrl: `${appUrl}/providers/login/verify?token=${encodeURIComponent(token)}`,
   })
+  if (!sent) {
+    await prisma.providerLoginToken.deleteMany({ where: { tokenHash: hashProviderToken(token) } })
+    console.error('Provider sign-in token removed because its email could not be delivered', { providerId })
+    return false
+  }
   return true
 }
 

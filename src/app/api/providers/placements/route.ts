@@ -210,12 +210,15 @@ export async function POST(request: NextRequest) {
       where: { id: placementId },
       data: { stripeCheckoutSessionId: session.id },
     })
-    await sendPlacementRequestEmail({
+    const adminNotified = await sendPlacementRequestEmail({
       businessName: provider.businessName,
       providerEmail: provider.email!,
       state,
       tier: tier as 'FEATURED' | 'PREMIUM',
     })
+    if (!adminNotified) {
+      console.error('[placements] Administrator notification failed', { providerId: provider.id, placementId })
+    }
     return NextResponse.json({ url: session.url }, { status: 201 })
   } catch (error) {
     if (session?.status === 'open') {

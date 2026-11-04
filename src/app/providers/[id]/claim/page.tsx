@@ -19,13 +19,20 @@ export default async function ClaimPage({ params }: Props) {
       city: true,
       state: true,
       claimStatus: true,
+      claimedByEmail: true,
+      claimRequests: {
+        where: { status: 'APPROVED', emailVerifiedAt: { not: null } },
+        select: { id: true },
+        take: 1,
+      },
       deletedAt: true,
     },
   })
 
   if (!provider || provider.deletedAt) notFound()
 
-  const alreadyClaimed = provider.claimStatus === 'CLAIMED'
+  const alreadyClaimed = provider.claimStatus === 'CLAIMED' &&
+    (!provider.claimedByEmail || provider.claimRequests.length > 0)
 
   return (
     <div className="min-h-screen bg-black text-white">

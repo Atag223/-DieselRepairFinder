@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { getRepairRequestConfirmationMessage } from '@/lib/request-routing'
 
 function getResendClient() {
   const apiKey = process.env.RESEND_API_KEY
@@ -10,6 +11,28 @@ function getResendClient() {
  
 const FROM = process.env.FROM_EMAIL ?? 'noreply@dieselrepairfinder.com'
 const NOTIFY = process.env.NOTIFY_EMAIL ?? 'admin@dieselrepairfinder.com'
+
+async function deliverEmail(
+  label: string,
+  message: { to: string; subject: string; html: string }
+): Promise<boolean> {
+  const resend = getResendClient()
+  if (!resend) {
+    console.error(`${label} not sent: RESEND_API_KEY is not configured`)
+    return false
+  }
+  try {
+    const result = await resend.emails.send({ from: FROM, ...message })
+    if (result.error) {
+      console.error(`${label} not sent: email provider returned an error`)
+      return false
+    }
+    return true
+  } catch {
+    console.error(`${label} not sent: email provider request failed`)
+    return false
+  }
+}
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (character) => ({
@@ -52,58 +75,41 @@ export function renderProviderLeadOpportunityEmail(data: {
 }
 
 export async function sendProviderLeadOpportunityEmail(data: Parameters<typeof renderProviderLeadOpportunityEmail>[0]) {
-  const resend = getResendClient()
-  if (!resend) {
-    console.warn('RESEND_API_KEY not set — skipping provider lead notification')
-    return
-  }
-  try {
-    await resend.emails.send({
-      from: FROM,
+  return deliverEmail('Provider lead notification', {
       to: data.to,
       subject: `[DieselRepairFinder] New ${data.category} service request`,
       html: renderProviderLeadOpportunityEmail(data),
     })
-  } catch (error) {
-    console.error('Failed to send provider lead notification:', error)
-  }
+}
+
+export function renderProviderClaimVerificationEmail(data: { token: string }) {
+  const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/providers/claim/verify?token=${encodeURIComponent(data.token)}`
+  return `<p>Confirm that you control this email address to continue claiming the provider listing.</p><p><a href="${escapeHtml(verifyUrl)}">Verify claim email</a></p><p>This link expires in 30 minutes. Your listing account email will not change unless an administrator approves the verified claim.</p>`
+}
+
+export async function sendProviderClaimVerificationEmail(data: { to: string; token: string }) {
+  return deliverEmail('Provider claim verification', {
+    to: data.to,
+    subject: 'Verify your DieselRepairFinder provider claim',
+    html: renderProviderClaimVerificationEmail(data),
+  })
 }
 
 export async function sendProviderLoginEmail(data: { to: string; loginUrl: string }) {
-  const resend = getResendClient()
-  if (!resend) {
-    console.warn('RESEND_API_KEY not set — skipping provider sign-in email')
-    return
-  }
-  try {
-    await resend.emails.send({
-      from: FROM,
+  return deliverEmail('Provider sign-in email', {
       to: data.to,
       subject: 'Your DieselRepairFinder provider sign-in link',
       html: `<p>Use this one-time link to securely access your provider dashboard. It expires in 15 minutes.</p><p><a href="${escapeHtml(data.loginUrl)}">Sign in to your provider account</a></p><p>If you did not request this link, you can ignore this email.</p>`,
     })
-  } catch (error) {
-    console.error('Failed to send provider sign-in email:', error)
-  }
 }
 
 export async function sendProviderApprovalEmail(data: { to: string; businessName: string }) {
-  const resend = getResendClient()
-  if (!resend) {
-    console.warn('RESEND_API_KEY not set — skipping provider approval email')
-    return
-  }
   const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/providers/login`
-  try {
-    await resend.emails.send({
-      from: FROM,
+  return deliverEmail('Provider approval email', {
       to: data.to,
       subject: 'Your DieselRepairFinder listing is approved',
       html: `<p>Your listing for ${escapeHtml(data.businessName)} is approved and is now visible in the directory.</p><p>Activate your prepaid lead account to begin receiving qualified service opportunities. Your free listing remains active if you choose not to fund an account.</p><p><a href="${escapeHtml(loginUrl)}">Sign in to your provider dashboard</a></p>`,
     })
-  } catch (error) {
-    console.error('Failed to send provider approval email:', error)
-  }
 }
 
 export async function sendPlacementRequestEmail(data: {
@@ -112,22 +118,12 @@ export async function sendPlacementRequestEmail(data: {
   state: string
   tier: 'FEATURED' | 'PREMIUM'
 }) {
-  const resend = getResendClient()
-  if (!resend) {
-    console.warn('RESEND_API_KEY not set — skipping placement request notification')
-    return
-  }
   const annualPrice = data.tier === 'FEATURED' ? '$1,250' : '$1,500'
-  try {
-    await resend.emails.send({
-      from: FROM,
+  return deliverEmail('Placement request administrator notification', {
       to: NOTIFY,
       subject: `[DieselRepairFinder] ${data.tier} placement checkout started for ${data.state}`,
       html: `<h2>State placement checkout started</h2><p><strong>Business:</strong> ${escapeHtml(data.businessName)}</p><p><strong>Provider email:</strong> ${escapeHtml(data.providerEmail)}</p><p><strong>Placement:</strong> ${escapeHtml(data.tier)} in ${escapeHtml(data.state)}</p><p><strong>Annual price:</strong> ${annualPrice}</p><p>The provider is completing one-time Stripe Checkout. The placement will activate for 12 months only after Stripe verifies payment. Review the <a href="${escapeHtml(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')}/admin/placements">admin placement queue</a>.</p>`,
     })
-  } catch (error) {
-    console.error('Failed to send placement request notification:', error)
-  }
 }
 
 export async function sendPlacementApprovalEmail(data: {
@@ -136,19 +132,12 @@ export async function sendPlacementApprovalEmail(data: {
   state: string
   tier: 'FEATURED' | 'PREMIUM'
 }) {
-  const resend = getResendClient()
-  if (!resend) return
   const price = data.tier === 'FEATURED' ? '$1,250/year' : '$1,500/year'
-  try {
-    await resend.emails.send({
-      from: FROM,
+  return deliverEmail('Placement approval email', {
       to: data.to,
       subject: `Placement request approved for ${data.state}`,
       html: `<p>The ${escapeHtml(data.tier)} State Placement request for ${escapeHtml(data.businessName)} in ${escapeHtml(data.state)} has been approved, subject to payment.</p><p>Annual placement price: ${price}. Reply to this message to arrange payment. The placement will not display until administration confirms payment.</p>`,
     })
-  } catch (error) {
-    console.error('Failed to send placement approval email:', error)
-  }
 }
 
 export async function sendRepairRequestEmail(data: {
@@ -162,16 +151,14 @@ export async function sendRepairRequestEmail(data: {
   requesterCompany?: string | null
   breakdownNow?: boolean
   truckType?: string | null
+  routingStatus: 'DISPATCHED' | 'NEEDS_ATTENTION'
+  routingError?: string | null
+  dispatchedCount: number
 }) {
-  const resend = getResendClient()
-  if (!resend) {
-    console.warn('RESEND_API_KEY not set — skipping email notification')
-    return
-  }
-
-  try {
-    await resend.emails.send({
-      from: FROM,
+  const routingSummary = data.routingStatus === 'DISPATCHED'
+    ? `${data.dispatchedCount} provider(s) were notified.${data.routingError ? ` Warning: ${data.routingError}` : ''}`
+    : `No provider was notified. Reason: ${data.routingError || 'No funded matching providers were available.'}`
+  const adminNotified = await deliverEmail('Repair request administrator notification', {
       to: NOTIFY,
       subject: `[DieselRepairFinder] New Repair Request — Ref: ${data.referenceId}`,
       html: `
@@ -186,28 +173,39 @@ export async function sendRepairRequestEmail(data: {
         <p><strong>Issue Details:</strong> ${escapeHtml(data.issueDetails)}</p>
         <p><strong>Breakdown Now:</strong> ${data.breakdownNow ? 'YES — EMERGENCY' : 'No'}</p>
         ${data.truckType ? `<p><strong>Truck Type:</strong> ${escapeHtml(data.truckType)}</p>` : ''}
+        <p><strong>Lead routing:</strong> ${escapeHtml(routingSummary)}</p>
       `,
     })
-
-    // Send confirmation to requester
-    await resend.emails.send({
-      from: FROM,
+  const requesterNotified = await deliverEmail('Repair request customer confirmation', {
       to: data.requesterEmail,
       subject: `Your Diesel Repair Request — Ref: ${data.referenceId}`,
-      html: `
-        <h2>We received your repair request!</h2>
-        <p>Hi ${data.requesterName},</p>
-        <p>Your repair request has been submitted. A mobile diesel mechanic will be in touch shortly.</p>
-        <p><strong>Reference ID:</strong> ${escapeHtml(data.referenceId)}</p>
-        <p><strong>Issue:</strong> ${escapeHtml(data.issueType)}</p>
-        <p><strong>Location:</strong> ${escapeHtml(data.serviceAddress)}</p>
-        <br/>
-        <p>— Diesel Repair Finder Team</p>
-      `,
+      html: renderRepairRequestConfirmationEmail({
+        requesterName: data.requesterName,
+        referenceId: data.referenceId,
+        issueType: data.issueType,
+        dispatchedCount: data.dispatchedCount,
+        adminNotified,
+      }),
     })
-  } catch (error) {
-    console.error('Failed to send repair request email:', error)
-  }
+  return { adminNotified, requesterNotified }
+}
+
+export function renderRepairRequestConfirmationEmail(data: {
+  requesterName: string
+  referenceId: string
+  issueType: string
+  dispatchedCount: number
+  adminNotified: boolean
+}) {
+  return `
+    <h2>We received your repair request!</h2>
+    <p>Hi ${escapeHtml(data.requesterName)},</p>
+    <p>${escapeHtml(getRepairRequestConfirmationMessage(data.dispatchedCount, data.adminNotified))}</p>
+    <p><strong>Reference ID:</strong> ${escapeHtml(data.referenceId)}</p>
+    <p><strong>Issue:</strong> ${escapeHtml(data.issueType)}</p>
+    <br/>
+    <p>— Diesel Repair Finder Team</p>
+  `
 }
 
 export async function sendMechanicSignupEmail(data: {
@@ -218,41 +216,28 @@ export async function sendMechanicSignupEmail(data: {
   city: string
   state: string
 }) {
-  const resend = getResendClient()
-  if (!resend) {
-    console.warn('RESEND_API_KEY not set — skipping email notification')
-    return
-  }
-
-  try {
-    await resend.emails.send({
-      from: FROM,
+  const adminNotified = await deliverEmail('Mechanic application administrator notification', {
       to: NOTIFY,
       subject: `[DieselRepairFinder] New Mechanic Application — ${data.businessName}`,
       html: `
         <h2>New Mechanic Application</h2>
-        <p><strong>Business:</strong> ${data.businessName}</p>
-        <p><strong>Contact:</strong> ${data.contactName}</p>
-        <p><strong>Email:</strong> ${data.email}</p>
-        <p><strong>Phone:</strong> ${data.phone}</p>
-        <p><strong>Location:</strong> ${data.city}, ${data.state}</p>
+        <p><strong>Business:</strong> ${escapeHtml(data.businessName)}</p>
+        <p><strong>Contact:</strong> ${escapeHtml(data.contactName)}</p>
+        <p><strong>Email:</strong> ${escapeHtml(data.email)}</p>
+        <p><strong>Phone:</strong> ${escapeHtml(data.phone)}</p>
+        <p><strong>Location:</strong> ${escapeHtml(data.city)}, ${escapeHtml(data.state)}</p>
       `,
     })
-
-    // Confirmation to mechanic
-    await resend.emails.send({
-      from: FROM,
+  const applicantNotified = await deliverEmail('Mechanic application confirmation', {
       to: data.email,
       subject: 'Welcome to Diesel Repair Finder — Application Received',
       html: `
         <h2>Application Received!</h2>
-        <p>Hi ${data.contactName},</p>
+        <p>Hi ${escapeHtml(data.contactName)},</p>
         <p>Thank you for applying to join the Diesel Repair Finder network. We'll review your application and reach out soon.</p>
         <br/>
         <p>— Diesel Repair Finder Team</p>
       `,
     })
-  } catch (error) {
-    console.error('Failed to send mechanic signup email:', error)
-  }
+  return { adminNotified, applicantNotified }
 }

@@ -33,12 +33,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     })
     if (result.count !== 1) return NextResponse.json({ error: 'Placement request has changed.' }, { status: 409 })
     if (placement.provider.email) {
-      await sendPlacementApprovalEmail({
+      const sent = await sendPlacementApprovalEmail({
         to: placement.provider.email,
         businessName: placement.provider.businessName,
         state: placement.state,
         tier: placement.tier as 'FEATURED' | 'PREMIUM',
       })
+      if (!sent) console.error('[placements] Provider approval email failed', { placementId: id })
     }
     return NextResponse.json({ success: true })
   }

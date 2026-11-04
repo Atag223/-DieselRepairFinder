@@ -80,6 +80,23 @@ history. Do not point it, `migrate dev`, or `migrate deploy` at Production or th
 existing Preview database. See [Production schema reconciliation](prisma/reconciliation/README.md)
 for the required audit and isolated-clone rehearsal before any future rollout.
 
+The manual `Production database rehearsal (isolated clone only)` Actions workflow
+can capture a schema-only snapshot or rehearse reviewed migrations. It runs only
+from `copilot/copilotconsolidated-launch-from-production-schema` and rejects
+connection URLs unless they target Supabase project `hgilnwvxvtryhdndbelk`.
+Before any run, configure the GitHub `production-rehearsal` Environment with
+required reviewers, restrict its deployment branch to that branch, and store
+`REHEARSAL_DATABASE_URL` and `REHEARSAL_DIRECT_URL` as environment secrets.
+Never put credentials in workflow inputs, comments, or artifacts. The capture
+mode uploads schema-only output for one day; do not share it outside repository
+reviewers. Migration mode fails closed until an exact reviewed baseline has
+replaced the incomplete historical root, the pre-feature
+`prisma/reconciliation/production-baseline.prisma` matches the clone, and the
+reconciliation SQL is an ordered migration. Before applying the baseline
+ledger entry, the workflow compares that schema snapshot to the clone. No
+Production/Preview Vercel, Stripe, or customer-email credentials belong in
+this environment.
+
 ### 4. Run Locally
 
 ```bash

@@ -282,7 +282,7 @@ export async function selectProviders(params: {
 export async function createLeadsForRequest(
   serviceRequestId: string,
   selectedProviders: SelectedProvider[]
-): Promise<void> {
+): Promise<{ dispatchedCount: number; failedCount: number }> {
   const providerIds = selectedProviders.map((p) => p.id)
 
   // Deduplication: exclude providers that already have a lead for this request
@@ -305,7 +305,7 @@ export async function createLeadsForRequest(
 
   if (newProviders.length === 0) {
     console.log('[leads] No new leads to create', { serviceRequestId })
-    return
+    return { dispatchedCount: 0, failedCount: 0 }
   }
 
   const serviceRequest = await prisma.serviceRequest.findUnique({
@@ -318,38 +318,59 @@ export async function createLeadsForRequest(
       breakdownNow: true,
     },
   })
-  if (!serviceRequest) return
+  if (!serviceRequest) return { dispatchedCount: 0, failedCount: newProviders.length }
 
-  await Promise.all(newProviders.map(async (selected) => {
-    if (!selected.email) return
+  const outcomes = await Promise.all(newProviders.map(async (selected) => {
+    if (!selected.email) return false
     const token = randomBytes(32).toString('base64url')
-    const lead = await prisma.lead.create({
-      data: {
+    try {
+      const lead = await prisma.lead.create({
+        data: {
+          serviceRequestId,
+          providerId: selected.id,
+          status: LeadStatus.SENT,
+          charged: false,
+          price: LEAD_PRICE,
+          acceptanceTokenHash: createHash('sha256').update(token).digest('hex'),
+          acceptanceTokenExpiresAt: new Date(Date.now() + ACCEPTANCE_TOKEN_TTL_HOURS * 60 * 60 * 1000),
+          providerLocationId: selected.routingLocationId ?? null,
+          distanceMiles: selected.routingDistanceMiles ?? null,
+          routingRank: selected.routingRank ?? null,
+          routingRadiusUsed: selected.routingRadiusUsed ?? null,
+        },
+      })
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      const sent = await sendProviderLeadOpportunityEmail({
+        to: selected.email,
+        providerName: selected.businessName,
+        leadUrl: `${appUrl}/leads/${lead.id}/accept?token=${encodeURIComponent(token)}`,
+        category: serviceRequest.requestedCategory,
+        city: serviceRequest.city,
+        state: serviceRequest.state,
+        issueType: serviceRequest.issueType,
+        breakdownNow: serviceRequest.breakdownNow,
+      })
+      if (!sent) {
+        console.error('[leads] Provider notification failed', {
+          serviceRequestId,
+          leadId: lead.id,
+          providerId: selected.id,
+        })
+      }
+      return sent
+    } catch {
+      console.error('[leads] Failed to create or notify provider lead', {
         serviceRequestId,
         providerId: selected.id,
-        status: LeadStatus.SENT,
-        charged: false,
-        price: LEAD_PRICE,
-        acceptanceTokenHash: createHash('sha256').update(token).digest('hex'),
-        acceptanceTokenExpiresAt: new Date(Date.now() + ACCEPTANCE_TOKEN_TTL_HOURS * 60 * 60 * 1000),
-        providerLocationId: selected.routingLocationId ?? null,
-        distanceMiles: selected.routingDistanceMiles ?? null,
-        routingRank: selected.routingRank ?? null,
-        routingRadiusUsed: selected.routingRadiusUsed ?? null,
-      },
-    })
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    await sendProviderLeadOpportunityEmail({
-      to: selected.email,
-      providerName: selected.businessName,
-      leadUrl: `${appUrl}/leads/${lead.id}/accept?token=${encodeURIComponent(token)}`,
-      category: serviceRequest.requestedCategory,
-      city: serviceRequest.city,
-      state: serviceRequest.state,
-      issueType: serviceRequest.issueType,
-      breakdownNow: serviceRequest.breakdownNow,
-    })
+      })
+      return false
+    }
   }))
+  const dispatchedCount = outcomes.filter(Boolean).length
+  return {
+    dispatchedCount,
+    failedCount: outcomes.length - dispatchedCount,
+  }
 }
 
 /**

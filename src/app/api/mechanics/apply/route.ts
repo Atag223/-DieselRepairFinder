@@ -63,10 +63,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Send email notifications (non-blocking)
-    // contactName, email, and phone are validated as required fields above,
-    // so they are guaranteed to be non-null at this point.
-    sendMechanicSignupEmail({
+    const notificationResult = await sendMechanicSignupEmail({
       businessName: provider.businessName,
       contactName: provider.contactName!,
       email: provider.email!,
@@ -74,6 +71,12 @@ export async function POST(request: NextRequest) {
       city: provider.city,
       state: provider.state,
     })
+    if (!notificationResult.adminNotified || !notificationResult.applicantNotified) {
+      console.error('Mechanic application email delivery incomplete', {
+        providerId: provider.id,
+        ...notificationResult,
+      })
+    }
 
     return NextResponse.json(
       {

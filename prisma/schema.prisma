@@ -19,6 +19,12 @@ enum RequestStatus {
   CANCELLED
 }
 
+enum RequestRoutingStatus {
+  PENDING
+  DISPATCHED
+  NEEDS_ATTENTION
+}
+
 enum ProviderCategory {
   DIESEL_MECHANIC
   MOBILE_TIRE_SERVICE
@@ -103,6 +109,10 @@ model ServiceRequest {
   nationalAccountName String?
 
   status            RequestStatus    @default(PENDING)
+  routingStatus     RequestRoutingStatus?
+  routingError      String?
+  adminNotifiedAt   DateTime?
+  requesterNotifiedAt DateTime?
   referenceId       String           @unique @default(cuid())
   requestedCategory ProviderCategory @default(DIESEL_MECHANIC)
 
@@ -267,6 +277,9 @@ model ProviderClaimRequest {
   email        String
   notes        String?
   status       ClaimRequestStatus @default(NEW)
+  emailVerificationTokenHash String? @unique
+  emailVerificationExpiresAt DateTime?
+  emailVerifiedAt DateTime?
 
   provider     ServiceProvider    @relation(fields: [providerId], references: [id])
 
