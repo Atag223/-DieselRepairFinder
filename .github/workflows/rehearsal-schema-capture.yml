@@ -1,0 +1,98 @@
+name: Capture production-rehearsal schema
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-rehearsal-schema-capture
+  cancel-in-progress: false
+
+jobs:
+  capture-schema:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production-rehearsal
+    steps:
+      - name: Check out the selected main commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Validate rehearsal connection and prepare credentials
+        shell: bash
+        env:
+          REHEARSAL_DATABASE_URL: ${{ secrets.REHEARSAL_DIRECT_URL }}
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const fail = () => {
+            console.error("Connection rejected. Use the approved rehearsal project, postgres database, public schema, and TLS.");
+            process.exit(1);
+          };
+          try {
+            const raw = process.env.REHEARSAL_DATABASE_URL;
+            if (!raw || raw !== raw.trim()) fail();
+            const url = new URL(raw);
+            const ref = "hgilnwvxvtryhdndbelk";
+            const user = decodeURIComponent(url.username);
+            const direct = url.hostname === `db.${ref}.supabase.co` &&
+              user === "postgres";
+            const pooler = /^aws-\d+-[a-z0-9-]+\.pooler\.supabase\.com$/.test(url.hostname) &&
+              user === `postgres.${ref}`;
+            if (!["postgres:", "postgresql:"].includes(url.protocol) ||
+                !url.password || /[\r\n]/.test(decodeURIComponent(url.password)) ||
+                url.port !== "5432" || url.pathname !== "/postgres" ||
+                (!direct && !pooler) || url.hash ||
+                !["require", "verify-full"].includes(url.searchParams.get("sslmode")) ||
+                (url.searchParams.has("schema") && url.searchParams.get("schema") !== "public") ||
+                [...url.searchParams.keys()].some(key =>
+                  !["sslmode", "schema"].includes(key) || url.searchParams.getAll(key).length !== 1)) {
+              fail();
+            }
+
+            const escapePgpass = value => value.replaceAll("\\", "\\\\").replaceAll(":", "\\:");
+            const passfile = `${process.env.RUNNER_TEMP}/rehearsal.pgpass`;
+            fs.writeFileSync(
+              passfile,
+              `${url.hostname}:${url.port}:postgres:${user}:${escapePgpass(decodeURIComponent(url.password))}\n`,
+              { mode: 0o600 }
+            );
+            fs.appendFileSync(process.env.GITHUB_ENV, [
+              `PGHOST=${url.hostname}`,
+              `PGPORT=${url.port}`,
+              `PGDATABASE=postgres`,
+              `PGUSER=${user}`,
+              `PGSSLMODE=${url.searchParams.get("sslmode")}`,
+              `PGPASSFILE=${passfile}`,
+              ""
+            ].join("\n"));
+          } catch {
+            fail();
+          }
+          console.log("Connection target validated; credentials were not printed.");
+          NODE
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Capture schema-only snapshot
+        shell: bash
+        run: |
+          set +x
+          pg_dump --schema-only --schema=public --no-owner --no-acl \
+            --file="$RUNNER_TEMP/rehearsal-schema.sql"
+
+      - name: Upload schema snapshot for review
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rehearsal-schema-${{ github.run_id }}
+          path: ${{ runner.temp }}/rehearsal-schema.sql
+          if-no-files-found: error
+          retention-days: 1
