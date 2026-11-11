@@ -61,7 +61,7 @@ BEGIN
   END IF;
 
   IF (
-    SELECT array_agg(enum_value.enumlabel ORDER BY enum_value.enumsortorder)
+    SELECT array_agg(enum_value.enumlabel::TEXT ORDER BY enum_value.enumsortorder)
     FROM pg_enum AS enum_value
     JOIN pg_type AS enum_type ON enum_type.oid = enum_value.enumtypid
     JOIN pg_namespace AS enum_schema ON enum_schema.oid = enum_type.typnamespace
@@ -71,7 +71,7 @@ BEGIN
   END IF;
 
   IF (
-    SELECT array_agg(enum_value.enumlabel ORDER BY enum_value.enumsortorder)
+    SELECT array_agg(enum_value.enumlabel::TEXT ORDER BY enum_value.enumsortorder)
     FROM pg_enum AS enum_value
     JOIN pg_type AS enum_type ON enum_type.oid = enum_value.enumtypid
     JOIN pg_namespace AS enum_schema ON enum_schema.oid = enum_type.typnamespace
