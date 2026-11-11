@@ -1,3 +1,7 @@
+-- The restored Production schema predates the ClaimRequestStatus enum.
+-- Create it before the guarded reconciliation converts ProviderClaimRequest.status.
+CREATE TYPE "ClaimRequestStatus" AS ENUM ('NEW', 'CONTACTED', 'APPROVED', 'DECLINED');
+
 CREATE TABLE "ProviderLoginToken" (
   "id" TEXT NOT NULL,
   "providerId" TEXT NOT NULL,
