@@ -63,8 +63,8 @@ export default function ClaimForm({ providerId, businessName }: ClaimFormProps) 
         <div className="text-4xl mb-3">✅</div>
         <h2 className="text-xl font-bold text-green-300 mb-2">Claim Request Submitted</h2>
         <p className="text-green-400 mb-6">
-          We received your claim for <strong>{businessName}</strong>. Our team will review it and
-          contact you within 1–2 business days.
+          We sent an email verification link for your claim to the email address you provided.
+          Verify it before our team can review the claim for <strong>{businessName}</strong>.
         </p>
         <Link
           href="/providers"

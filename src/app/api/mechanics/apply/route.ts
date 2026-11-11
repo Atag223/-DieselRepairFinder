@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
       state,
       serviceRadius,
       website,
+      description,
       is24_7,
       services,
       notes,
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
         state,
         serviceRadius: Number(serviceRadius),
         website: website || null,
+        description: description || null,
         is24_7: Boolean(is24_7),
         services: parseServices(services),
         notes: notes || null,
@@ -61,10 +63,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Send email notifications (non-blocking)
-    // contactName, email, and phone are validated as required fields above,
-    // so they are guaranteed to be non-null at this point.
-    sendMechanicSignupEmail({
+    const notificationResult = await sendMechanicSignupEmail({
       businessName: provider.businessName,
       contactName: provider.contactName!,
       email: provider.email!,
@@ -72,6 +71,12 @@ export async function POST(request: NextRequest) {
       city: provider.city,
       state: provider.state,
     })
+    if (!notificationResult.adminNotified || !notificationResult.applicantNotified) {
+      console.error('Mechanic application email delivery incomplete', {
+        providerId: provider.id,
+        ...notificationResult,
+      })
+    }
 
     return NextResponse.json(
       {

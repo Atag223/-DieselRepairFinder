@@ -1,0 +1,184 @@
+name: Production database rehearsal (isolated clone only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Capture the isolated clone's schema, or rehearse reviewed migrations
+        type: choice
+        options:
+          - capture-schema
+          - rehearse-migrations
+        required: true
+        default: capture-schema
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-rehearsal-database
+  cancel-in-progress: false
+
+jobs:
+  rehearsal:
+    if: github.ref == 'refs/heads/copilot/copilotconsolidated-launch-from-production-schema'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production-rehearsal
+    env:
+      EXPECTED_PROJECT_REF: hgilnwvxvtryhdndbelk
+      DATABASE_URL: ${{ secrets.REHEARSAL_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.REHEARSAL_DIRECT_URL }}
+      CHECKPOINT_DISABLE: "1"
+      NO_COLOR: "1"
+    steps:
+      - name: Check out the selected PR branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify the rehearsal target and migration readiness
+        shell: bash
+        env:
+          REHEARSAL_MODE: ${{ inputs.mode }}
+        run: |
+          node <<'NODE'
+          const { existsSync, readdirSync } = require("node:fs");
+          const fail = (message) => { console.error(message); process.exit(1); };
+          const ref = process.env.EXPECTED_PROJECT_REF;
+          if (ref !== "hgilnwvxvtryhdndbelk") fail("Unexpected rehearsal project reference.");
+          for (const name of ["DATABASE_URL", "DIRECT_URL"]) {
+            try {
+              const raw = process.env[name];
+              if (!raw || raw !== raw.trim()) throw new Error();
+              const url = new URL(raw);
+              const user = decodeURIComponent(url.username);
+              const direct = url.hostname === `db.${ref}.supabase.co` &&
+                user === "postgres" && url.port === "5432";
+              const pooler = /^aws-\d+-[a-z0-9-]+\.pooler\.supabase\.com$/.test(url.hostname) &&
+                user === `postgres.${ref}` &&
+                (url.port === "5432" || (name === "DATABASE_URL" && url.port === "6543"));
+              const allowedParams = new Set([
+                "sslmode", "schema", "pgbouncer", "connection_limit",
+                "pool_timeout", "connect_timeout", "statement_cache_size"
+              ]);
+              if (!["postgres:", "postgresql:"].includes(url.protocol) ||
+                  !url.password || url.pathname !== "/postgres" || url.hash ||
+                  (!direct && !pooler) ||
+                  (name === "DIRECT_URL" && !direct) ||
+                  !["require", "verify-full"].includes(url.searchParams.get("sslmode")) ||
+                  (url.searchParams.has("schema") && url.searchParams.get("schema") !== "public") ||
+                  (name === "DIRECT_URL" && url.searchParams.get("pgbouncer") === "true") ||
+                  [...url.searchParams.keys()].some(key =>
+                    !allowedParams.has(key) || url.searchParams.getAll(key).length !== 1)) {
+                throw new Error();
+              }
+            } catch {
+              fail(`${name} rejected: use only the isolated Supabase rehearsal project, public schema, and TLS.`);
+            }
+          }
+          if (process.env.REHEARSAL_MODE === "rehearse-migrations") {
+            const migrations = readdirSync("prisma/migrations", { withFileTypes: true })
+              .filter(entry => entry.isDirectory()).map(entry => entry.name);
+            const baseline = "00000000000000_production_baseline";
+            if (!existsSync(`prisma/migrations/${baseline}/migration.sql`)) {
+              fail("No reviewed production baseline exists; capture and review the clone schema first.");
+            }
+            if (!existsSync("prisma/reconciliation/production-baseline.prisma")) {
+              fail("The reviewed pre-feature Prisma baseline schema is missing.");
+            }
+            if (migrations.some(name => /^(2024|202605)/.test(name))) {
+              fail("The incomplete historical migration root must be archived before rehearsal.");
+            }
+            const requiredMigrations = [
+              baseline,
+              "20261017000000_lead_acceptance_and_listing_privacy",
+              "20261017010000_provider_accounts_and_placements",
+              "20261017020000_stripe_placement_checkout",
+              "20261018000000_production_schema_reconciliation",
+              "20261104000000_claim_verification_and_request_routing"
+            ];
+            for (const name of requiredMigrations) {
+              if (!existsSync(`prisma/migrations/${name}/migration.sql`)) {
+                fail(`Reviewed rehearsal migration is missing: ${name}`);
+              }
+            }
+            if (migrations.some(name => !requiredMigrations.includes(name))) {
+              fail("An unreviewed migration is present in the rehearsal migration chain.");
+            }
+          }
+          console.log(`Target URL checks passed for the isolated rehearsal project; no connection details were printed.`);
+          NODE
+
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Capture schema-only snapshot for review
+        if: inputs.mode == 'capture-schema'
+        shell: bash
+        run: |
+          set +x
+          mkdir -p "$RUNNER_TEMP/rehearsal-schema"
+          cp prisma/schema.prisma "$RUNNER_TEMP/rehearsal-schema/introspected-schema.prisma"
+          pg_dump --schema-only --no-owner --no-acl "$DIRECT_URL" \
+            --file="$RUNNER_TEMP/rehearsal-schema/production-rehearsal-schema.sql"
+          npx --no-install prisma db pull \
+            --schema "$RUNNER_TEMP/rehearsal-schema/introspected-schema.prisma"
+
+      - name: Upload schema-only snapshot
+        if: inputs.mode == 'capture-schema'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: production-rehearsal-schema-${{ github.run_id }}
+          path: ${{ runner.temp }}/rehearsal-schema/
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Resolve reviewed baseline and rehearse migrations
+        if: inputs.mode == 'rehearse-migrations'
+        shell: bash
+        run: |
+          set +x
+          npx --no-install prisma migrate diff \
+            --from-schema-datamodel prisma/reconciliation/production-baseline.prisma \
+            --to-url "$DIRECT_URL" --exit-code
+          ledger_exists="$(psql "$DIRECT_URL" -X -A -t -v ON_ERROR_STOP=1 -c \
+            "SELECT to_regclass('public.\"_prisma_migrations\"') IS NOT NULL" 2>"$RUNNER_TEMP/ledger-error")" || {
+              echo "Could not safely inspect the rehearsal migration ledger."
+              exit 1
+            }
+          if [ "$ledger_exists" = "t" ]; then
+            unfinished="$(psql "$DIRECT_URL" -X -A -t -v ON_ERROR_STOP=1 -c \
+              "SELECT count(*) FROM public.\"_prisma_migrations\" WHERE finished_at IS NULL AND rolled_back_at IS NULL" 2>"$RUNNER_TEMP/ledger-error")" || {
+                echo "Could not safely inspect the rehearsal migration ledger."
+                exit 1
+              }
+            if [ "$unfinished" != "0" ]; then
+              echo "The rehearsal database has an unfinished migration; stop and review privately."
+              exit 1
+            fi
+            applied="$(psql "$DIRECT_URL" -X -A -t -v ON_ERROR_STOP=1 -c \
+              "SELECT COALESCE(string_agg(migration_name, ',' ORDER BY migration_name), '') FROM public.\"_prisma_migrations\" WHERE finished_at IS NOT NULL" 2>"$RUNNER_TEMP/ledger-error")" || {
+                echo "Could not safely inspect the rehearsal migration ledger."
+                exit 1
+          }
+          else
+            applied=""
+          fi
+          if [ -z "$applied" ]; then
+            npx --no-install prisma migrate resolve --applied 00000000000000_production_baseline
+          elif [ "$applied" != "00000000000000_production_baseline" ]; then
+            echo "Unexpected migration ledger on rehearsal clone; stop and review privately."
+            exit 1
+          fi
+          npx --no-install prisma migrate deploy
+
+      - name: Verify final schema against Prisma
+        if: inputs.mode == 'rehearse-migrations'
+        run: npx --no-install prisma migrate diff --from-url "$DIRECT_URL" --to-schema-datamodel prisma/schema.prisma --exit-code

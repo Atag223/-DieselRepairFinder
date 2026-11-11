@@ -56,6 +56,7 @@ interface FormData {
   state: string
   serviceRadius: string
   website: string
+  description: string
   is24_7: boolean
   services: string[]
   notes: string
@@ -86,6 +87,7 @@ export default function JoinPage() {
     state: '',
     serviceRadius: '',
     website: '',
+    description: '',
     is24_7: false,
     services: [],
     notes: '',
@@ -94,7 +96,10 @@ export default function JoinPage() {
 
   const [additionalLocations, setAdditionalLocations] = useState<AdditionalLocation[]>([])
   const [submitting, setSubmitting] = useState(false)
-  const [result, setResult] = useState<{ success: boolean; error?: string } | null>(null)
+  const [result, setResult] = useState<{
+    success: boolean
+    error?: string
+  } | null>(null)
   const serviceOptions =
     form.providerCategory === 'HYDRAULIC_HOSE_REPAIR'
       ? HYDRAULIC_SERVICE_OPTIONS
@@ -157,8 +162,8 @@ export default function JoinPage() {
             Join <span className="text-blue-500">DieselRepairFinder</span> as a Provider
           </h1>
           <p className="text-gray-300 text-lg mb-6">
-            Get listed for free and receive your first 3 accepted leads at no cost. After that,
-            pay only $25 when you accept a qualified job request.
+            Free to list. Activate a prepaid lead account whenever you are ready to receive
+            qualified service requests. No monthly subscription; $25 per accepted lead.
           </p>
           <div className="grid sm:grid-cols-3 gap-4 max-w-xl mx-auto mb-8">
             {[
@@ -187,14 +192,13 @@ export default function JoinPage() {
               <li className="flex items-start gap-2">
                 <span className="text-green-400 mt-0.5">✓</span>
                 <span>
-                  <strong className="text-white">First 3 accepted leads are free</strong> — get
-                  started with no upfront cost after approval.
+                  <strong className="text-white">Funded accounts receive service requests</strong> —
+                  free listings remain visible in directory searches.
                 </span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-yellow-400 mt-0.5">$</span>
                 <span>
-                  After your free leads, just{' '}
                   <strong className="text-white">$25 per accepted lead</strong> — pay only when
                   you accept a qualified job request.
                 </span>
@@ -225,14 +229,15 @@ export default function JoinPage() {
               <div className="text-5xl mb-4">🎉</div>
               <h2 className="text-2xl font-bold text-green-400 mb-3">Application Submitted!</h2>
               <p className="text-gray-300 mb-6">
-                Thanks for applying to the Diesel Repair Finder network. We&apos;ll review your
-                application and reach out within 1-2 business days.
+                Your free directory listing application is being reviewed. You can activate
+                service-request participation by purchasing prepaid lead credits; matching starts
+                after the listing is approved.
               </p>
               <Link
                 href="/"
                 className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors"
               >
-                ← Back to Home
+                Continue With Free Listing
               </Link>
             </div>
           ) : (
@@ -447,6 +452,20 @@ export default function JoinPage() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                  Public Company Description
+                </label>
+                <textarea
+                  name="description"
+                  value={form.description}
+                  onChange={handleChange}
+                  rows={3}
+                  placeholder="Describe your experience, qualifications, equipment, and capabilities."
+                  className="w-full bg-black border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors resize-none"
+                />
               </div>
 
               <div>

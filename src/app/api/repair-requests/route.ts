@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { sendRepairRequestEmail } from '@/lib/email'
 import { isValidEmail, parseProviderCategory } from '@/lib/validation'
 import { selectProviders, createLeadsForRequest } from '@/lib/leads'
+import { getRepairRequestConfirmationMessage } from '@/lib/request-routing'
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,8 +40,7 @@ export async function POST(request: NextRequest) {
       !requesterPhone ||
       !serviceAddress ||
       !issueType ||
-      !issueDetails ||
-      !paymentMethod
+      !issueDetails
     ) {
       return NextResponse.json(
         { error: 'Missing required fields' },
@@ -72,15 +72,49 @@ export async function POST(request: NextRequest) {
         roadsideLocation: roadsideLocation || null,
         specialNotes: specialNotes || null,
         requestedCategory: parseProviderCategory(requestedCategory),
-        paymentMethod: String(paymentMethod),
+        paymentMethod: paymentMethod ? String(paymentMethod) : 'Unknown',
         paymentNotes: paymentNotes || null,
         poNumber: poNumber || null,
         nationalAccountName: nationalAccountName || null,
+        routingStatus: 'PENDING',
       },
     })
 
-    // Send email notifications (non-blocking)
-    sendRepairRequestEmail({
+    let dispatchedCount = 0
+    let failedCount = 0
+    let routingError: string | null = null
+    try {
+      const providers = await selectProviders({
+        state: serviceRequest.state,
+        category: serviceRequest.requestedCategory,
+        serviceRequestId: serviceRequest.id,
+        latitude: serviceRequest.latitude,
+        longitude: serviceRequest.longitude,
+      })
+      if (providers.length > 0) {
+        const dispatch = await createLeadsForRequest(serviceRequest.id, providers)
+        dispatchedCount = dispatch.dispatchedCount
+        failedCount = dispatch.failedCount
+        if (failedCount > 0) {
+          routingError = `${failedCount} selected provider notification(s) failed.`
+        }
+      } else {
+        routingError = 'No funded matching providers were available.'
+        console.warn('[leads] No funded matching providers available', {
+          serviceRequestId: serviceRequest.id,
+          referenceId: serviceRequest.referenceId,
+        })
+      }
+    } catch {
+      console.error(
+        '[leads] CRITICAL: Request saved but provider routing failed',
+        { serviceRequestId: serviceRequest.id, referenceId: serviceRequest.referenceId }
+      )
+      routingError = 'Provider routing failed.'
+    }
+
+    const routingStatus = dispatchedCount > 0 ? 'DISPATCHED' : 'NEEDS_ATTENTION'
+    const notificationResult = await sendRepairRequestEmail({
       referenceId: serviceRequest.referenceId,
       requesterName: serviceRequest.requesterName,
       requesterEmail: serviceRequest.requesterEmail,
@@ -91,36 +125,43 @@ export async function POST(request: NextRequest) {
       requesterCompany: serviceRequest.requesterCompany,
       breakdownNow: serviceRequest.breakdownNow,
       truckType: serviceRequest.truckType,
+      routingStatus,
+      routingError,
+      dispatchedCount,
     })
-
-    // Select providers and create lead records — awaited so leads are always persisted.
-    try {
-      const providers = await selectProviders({
-        state: serviceRequest.state,
-        category: serviceRequest.requestedCategory,
+    if (!notificationResult.adminNotified || !notificationResult.requesterNotified) {
+      console.error('[leads] Repair request email delivery incomplete', {
         serviceRequestId: serviceRequest.id,
-        latitude: serviceRequest.latitude,
-        longitude: serviceRequest.longitude,
+        referenceId: serviceRequest.referenceId,
+        adminNotified: notificationResult.adminNotified,
+        requesterNotified: notificationResult.requesterNotified,
       })
-      if (providers.length > 0) {
-        await createLeadsForRequest(serviceRequest.id, providers)
-      } else {
-        console.log('[leads] No matching providers found', { serviceRequestId: serviceRequest.id })
-      }
-    } catch (leadErr) {
-      // Lead creation failure is logged prominently but does not fail the HTTP response —
-      // the service request is already persisted and the requester should not be blocked.
-      console.error(
-        `[leads] CRITICAL: Failed to create lead records for request ${serviceRequest.id}:`,
-        leadErr
-      )
+    }
+    try {
+      await prisma.serviceRequest.update({
+        where: { id: serviceRequest.id },
+        data: {
+          routingStatus,
+          routingError,
+          adminNotifiedAt: notificationResult.adminNotified ? new Date() : null,
+          requesterNotifiedAt: notificationResult.requesterNotified ? new Date() : null,
+        },
+      })
+    } catch {
+      console.error('[leads] Failed to record routing notification status', {
+        serviceRequestId: serviceRequest.id,
+        referenceId: serviceRequest.referenceId,
+      })
     }
 
     return NextResponse.json(
       {
         success: true,
         referenceId: serviceRequest.referenceId,
-        message: 'Your request has been submitted. A provider will contact you shortly.',
+        message: getRepairRequestConfirmationMessage(
+          dispatchedCount,
+          notificationResult.adminNotified
+        ),
       },
       { status: 201 }
     )

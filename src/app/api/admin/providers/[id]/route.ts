@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminRequest } from '@/lib/admin-auth'
 import { ProviderCategory, ProviderTier, VerificationStatus, ClaimStatus } from '@prisma/client'
-import { issueInitialFreeCredits } from '@/lib/leads'
+import { sendProviderApprovalEmail } from '@/lib/email'
+import { canReverifyExistingClaim, getProviderLoginEmail, normalizeClaimLoginEmail } from '@/lib/provider-account'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -27,6 +28,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           suspendedReason: fields.reason || null,
         },
       })
+      if (updated.email) {
+        const sent = await sendProviderApprovalEmail({ to: updated.email, businessName: updated.businessName })
+        if (!sent) console.error('Provider suspension notification failed', { providerId: id })
+      }
       return NextResponse.json({ success: true, provider: updated })
     }
 
@@ -43,43 +48,91 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           deletedAt: null,
         },
       })
-      // Issue 3 free lead credits if not already issued
-      await issueInitialFreeCredits(id)
       return NextResponse.json({ success: true, provider: updated })
     }
 
     if (action === 'approve-claim') {
-      const claimRequest = await prisma.providerClaimRequest.findFirst({
-        where: { providerId: id, status: { not: 'APPROVED' } },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true, email: true },
-      })
+      const updated = await prisma.$transaction(async (tx) => {
+        const providerBeforeApproval = await tx.serviceProvider.findUnique({
+          where: { id },
+          select: { claimStatus: true, claimedByEmail: true },
+        })
+        if (!providerBeforeApproval) throw new Error('CLAIM_PROVIDER_NOT_FOUND')
+        const claimRequest = await tx.providerClaimRequest.findFirst({
+          where: {
+            providerId: id,
+            status: { in: ['NEW', 'CONTACTED'] },
+            emailVerifiedAt: { not: null },
+          },
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, email: true },
+        })
+        if (!claimRequest) throw new Error('CLAIM_NOT_VERIFIED')
 
-      const updated = await prisma.serviceProvider.update({
-        where: { id },
-        data: {
-          active: true,
-          verificationStatus: 'VERIFIED',
-          claimStatus: 'CLAIMED',
-          claimedAt: new Date(),
-          claimedByEmail: claimRequest?.email ?? null,
-          approvedAt: new Date(),
-          suspendedAt: null,
-          suspendedReason: null,
-          deletedAt: null,
-        },
-      })
+        const loginEmail = normalizeClaimLoginEmail(claimRequest.email)
+        const reverifyExistingClaim = canReverifyExistingClaim(providerBeforeApproval, loginEmail)
+        if (
+          providerBeforeApproval.claimStatus === 'CLAIMED' &&
+          !reverifyExistingClaim
+        ) {
+          throw new Error('CLAIM_ALREADY_CLAIMED')
+        }
+        const conflictingProvider = await tx.serviceProvider.findFirst({
+          where: {
+            id: { not: id },
+            OR: [
+              { claimedByEmail: { equals: loginEmail, mode: 'insensitive' } },
+              {
+                claimedByEmail: null,
+                email: { equals: loginEmail, mode: 'insensitive' },
+              },
+            ],
+          },
+          select: { id: true },
+        })
+        if (conflictingProvider) throw new Error('CLAIM_EMAIL_IN_USE')
 
-      if (claimRequest) {
-        await prisma.providerClaimRequest.update({
-          where: { id: claimRequest.id },
+        const updateResult = await tx.serviceProvider.updateMany({
+          where: reverifyExistingClaim
+            ? {
+                id,
+                claimStatus: 'CLAIMED',
+                claimedByEmail: { equals: loginEmail, mode: 'insensitive' },
+              }
+            : { id, claimStatus: { not: 'CLAIMED' }, claimedByEmail: null },
+          data: {
+            active: true,
+            verificationStatus: 'VERIFIED',
+            claimStatus: 'CLAIMED',
+            claimedAt: new Date(),
+            claimedByEmail: loginEmail,
+            approvedAt: new Date(),
+            suspendedAt: null,
+            suspendedReason: null,
+            deletedAt: null,
+          },
+        })
+        if (updateResult.count !== 1) throw new Error('CLAIM_ALREADY_CLAIMED')
+        const markedApproved = await tx.providerClaimRequest.updateMany({
+          where: {
+            id: claimRequest.id,
+            status: { in: ['NEW', 'CONTACTED'] },
+            emailVerifiedAt: { not: null },
+          },
           data: { status: 'APPROVED' },
         })
-      }
+        if (markedApproved.count !== 1) throw new Error('CLAIM_NOT_VERIFIED')
+        const updated = await tx.serviceProvider.findUnique({ where: { id } })
+        if (!updated) throw new Error('CLAIM_PROVIDER_NOT_FOUND')
+        return { updated, approvedClaimEmail: loginEmail }
+      }, { isolationLevel: 'Serializable' })
 
-      // Issue 3 free lead credits if not already issued
-      await issueInitialFreeCredits(id)
-      return NextResponse.json({ success: true, provider: updated })
+      const loginEmail = getProviderLoginEmail(updated.updated, updated.approvedClaimEmail)
+      if (loginEmail) {
+        const sent = await sendProviderApprovalEmail({ to: loginEmail, businessName: updated.updated.businessName })
+        if (!sent) console.error('Provider claim approval notification failed', { providerId: id })
+      }
+      return NextResponse.json({ success: true, provider: updated.updated })
     }
 
     if (action === 'reactivate') {
@@ -132,6 +185,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       phone,
       email,
       website,
+      description,
       city,
       state,
       serviceRadius,
@@ -151,6 +205,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (phone !== undefined) data.phone = phone || null
     if (email !== undefined) data.email = email || null
     if (website !== undefined) data.website = website || null
+    if (description !== undefined) data.description = description || null
     if (city !== undefined) data.city = city
     if (state !== undefined) data.state = state
     if (serviceRadius !== undefined) data.serviceRadius = serviceRadius ? Number(serviceRadius) : null
@@ -170,6 +225,21 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     return NextResponse.json({ success: true, provider: updated })
   } catch (err) {
+    if (err instanceof Error && err.message === 'CLAIM_NOT_VERIFIED') {
+      return NextResponse.json(
+        { error: 'The claimant must verify their email before the claim can be approved.' },
+        { status: 409 }
+      )
+    }
+    if (err instanceof Error && err.message === 'CLAIM_EMAIL_IN_USE') {
+      return NextResponse.json(
+        { error: 'That email is already authorized for another provider listing.' },
+        { status: 409 }
+      )
+    }
+    if (err instanceof Error && err.message === 'CLAIM_ALREADY_CLAIMED') {
+      return NextResponse.json({ error: 'This provider listing has already been claimed.' }, { status: 409 })
+    }
     console.error('Admin update provider error:', err)
     return NextResponse.json({ error: 'Failed to update provider' }, { status: 500 })
   }
