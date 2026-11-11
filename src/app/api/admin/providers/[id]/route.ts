@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminRequest } from '@/lib/admin-auth'
 import { ProviderCategory, ProviderTier, VerificationStatus, ClaimStatus } from '@prisma/client'
-import { issueInitialFreeCredits } from '@/lib/leads'
+import { sendProviderApprovalEmail } from '@/lib/email'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -27,6 +27,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           suspendedReason: fields.reason || null,
         },
       })
+      if (updated.email) {
+        await sendProviderApprovalEmail({ to: updated.email, businessName: updated.businessName })
+      }
       return NextResponse.json({ success: true, provider: updated })
     }
 
@@ -43,8 +46,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           deletedAt: null,
         },
       })
-      // Issue 3 free lead credits if not already issued
-      await issueInitialFreeCredits(id)
       return NextResponse.json({ success: true, provider: updated })
     }
 
@@ -77,8 +78,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         })
       }
 
-      // Issue 3 free lead credits if not already issued
-      await issueInitialFreeCredits(id)
+      if (updated.email) {
+        await sendProviderApprovalEmail({ to: updated.email, businessName: updated.businessName })
+      }
       return NextResponse.json({ success: true, provider: updated })
     }
 
@@ -132,6 +134,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       phone,
       email,
       website,
+      description,
       city,
       state,
       serviceRadius,
@@ -151,6 +154,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (phone !== undefined) data.phone = phone || null
     if (email !== undefined) data.email = email || null
     if (website !== undefined) data.website = website || null
+    if (description !== undefined) data.description = description || null
     if (city !== undefined) data.city = city
     if (state !== undefined) data.state = state
     if (serviceRadius !== undefined) data.serviceRadius = serviceRadius ? Number(serviceRadius) : null

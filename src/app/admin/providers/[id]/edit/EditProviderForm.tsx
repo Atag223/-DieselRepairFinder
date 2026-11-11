@@ -30,6 +30,7 @@ export default function EditProviderForm({ provider }: Props) {
     phone: provider.phone ?? '',
     email: provider.email ?? '',
     website: provider.website ?? '',
+    description: provider.description ?? '',
     city: provider.city,
     state: provider.state,
     serviceRadius: provider.serviceRadius?.toString() ?? '',
@@ -217,6 +218,16 @@ export default function EditProviderForm({ provider }: Props) {
             value={form.services}
             onChange={(e) => set('services', e.target.value)}
             className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Public company description</label>
+          <textarea
+            value={form.description}
+            onChange={(e) => set('description', e.target.value)}
+            rows={3}
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 text-sm resize-none"
           />
         </div>
 

@@ -124,6 +124,7 @@ model ServiceProvider {
   state         String
   serviceRadius Int?
   website       String?
+  description   String?
   is24_7        Boolean          @default(false)
   services      String[]
   notes         String?
@@ -140,6 +141,7 @@ model ServiceProvider {
   // Credit-based billing fields
   leadCredits              Int      @default(0)
   freeLeadCreditsIssued    Boolean  @default(false)
+  promotionalBonusUsed     Boolean  @default(false)
   stripeCustomerId         String?
   stripeAccountBalanceCents Int     @default(0)
   billingStatus            String?
@@ -176,8 +178,55 @@ model ServiceProvider {
   creditTransactions  LeadCreditTransaction[]
   payments            ProviderPayment[]
   locations           ProviderLocation[]
+  loginTokens         ProviderLoginToken[]
+  sessions            ProviderSession[]
+  placements          ListingPlacement[]
 
   @@map("DieselMechanic")
+}
+
+model ProviderLoginToken {
+  id         String   @id @default(cuid())
+  providerId String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+  provider   ServiceProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId, createdAt])
+}
+
+model ProviderSession {
+  id         String   @id @default(cuid())
+  providerId String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  provider   ServiceProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId, expiresAt])
+}
+
+model ListingPlacement {
+  id            String   @id @default(cuid())
+  providerId    String
+  state         String
+  tier          ProviderTier
+  status        String   @default("REQUESTED")
+  paymentStatus String   @default("PENDING")
+  requestedAt   DateTime @default(now())
+  approvedAt    DateTime?
+  paidAt        DateTime?
+  startsAt      DateTime?
+  expiresAt     DateTime?
+  amountCents   Int?
+  stripeCheckoutSessionId String? @unique
+  checkoutExpiresAt DateTime?
+  provider      ServiceProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId, status])
+  @@index([state, tier, status])
 }
 
 model Lead {
@@ -190,6 +239,10 @@ model Lead {
   status           LeadStatus @default(SENT)
   charged          Boolean    @default(false)
   price            Float      @default(25)
+  acceptanceTokenHash String?  @unique
+  acceptanceTokenExpiresAt DateTime?
+  acceptedAt       DateTime?
+  acceptedServiceRequestProviderId String? @unique
 
   providerLocationId  String?
   distanceMiles       Float?
@@ -238,6 +291,7 @@ model ProviderPayment {
   createdAt             DateTime        @default(now())
   providerId            String
   stripePaymentIntentId String?
+  stripeCheckoutSessionId String? @unique
   amountCents           Int
   creditsPurchased      Int
   status                String

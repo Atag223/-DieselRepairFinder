@@ -22,13 +22,13 @@ const HOW_IT_WORKS = [
     step: '2',
     title: 'Get Matched Fast',
     description:
-      'We connect you with the nearest available provider in your area, 24/7.',
+      'Matching funded providers review the general job details before deciding whether to accept.',
   },
   {
     step: '3',
     title: 'Get Back on the Road',
     description:
-      'Your provider comes to you — roadside, truckstop, or job site. No tow required.',
+      'After an eligible provider accepts, we share your contact details so you can arrange service.',
   },
 ]
 
@@ -142,11 +142,6 @@ export default function HomePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (!form.paymentMethod) {
-      setResult({ success: false, error: 'Please select a payment method.' })
-      return
-    }
 
     setSubmitting(true)
     setResult(null)
@@ -285,7 +280,7 @@ export default function HomePage() {
               <div className="text-5xl mb-4">✅</div>
               <h3 className="text-2xl font-bold text-green-400 mb-3">Request Submitted!</h3>
               <p className="text-gray-300 mb-4">
-                Your request has been received. A provider will contact you shortly.
+                Your request has been received. If funded providers match, they will review it; your contact details are shared only after an eligible provider accepts.
               </p>
               <div className="bg-black/50 rounded-xl px-6 py-3 inline-block">
                 <span className="text-gray-400 text-sm">Reference ID: </span>
@@ -517,10 +512,10 @@ export default function HomePage() {
               <div className="border border-gray-700 rounded-xl p-5 space-y-4 bg-gray-900/50">
                 <div>
                   <label className="block text-sm font-semibold text-gray-200 mb-1">
-                    How will you pay the service provider? <span className="text-red-400">*</span>
+                    Payment preference (optional)
                   </label>
                   <p className="text-gray-500 text-xs mb-3">
-                    Payment is handled directly between you and the service provider. DieselRepairFinder uses this information to help providers decide whether to accept the request.
+                    You can discuss payment arrangements with the provider after accepting a service request. This preference is not shared before acceptance.
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {PAYMENT_METHODS.map((pm) => (
@@ -597,7 +592,7 @@ export default function HomePage() {
                 disabled={submitting}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-900 disabled:cursor-not-allowed text-white text-lg font-bold py-4 rounded-xl transition-colors shadow-lg shadow-blue-900/40"
               >
-                {submitting ? 'Submitting...' : '🔧 Request Help Now'}
+                {submitting ? 'Submitting...' : 'Request Service'}
               </button>
 
               <p className="text-gray-500 text-xs text-center">
@@ -659,9 +654,9 @@ export default function HomePage() {
             Are You a Roadside Service Provider?
           </h2>
           <p className="text-gray-300 text-lg mb-8">
-            Join our network of mobile diesel mechanics, tire service pros, hydraulic hose repair
-            specialists, and heavy-duty wreckers. Set your own hours, work in your territory, and
-            get connected with drivers and equipment operators who need your skills — 24/7.
+            Create a free directory listing for your mobile diesel, tire, hydraulic hose, or
+            heavy-duty towing business. Purchase prepaid lead credits whenever you are ready to
+            receive matching service requests; pay only when you accept a qualified lead.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
